@@ -194,7 +194,7 @@ make install
 Make a new folder to store your configuration file and ETH keystore file.
 ```
 mkdir .rfq-mm
-cd rfq-mm
+cd .rfq-mm
 mkdir config eth-ks
 touch config/chain.toml config/lp.toml config/fee.toml config/mm.toml
 // move all used address's keystore file into .rfq-mm/eth-ks/
