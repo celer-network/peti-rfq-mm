@@ -527,7 +527,7 @@ func (mm *YourMMApp) Serve(port int, ops ...grpc.ServerOption) {
 ### Information
 
 #### Server
-RFQ Server URL: `https://cbridge-stat.s3.us-west-2.amazonaws.com/prod2/cbridge-price.json`
+RFQ Server URL: `cbridge-v2-test.celer.network:9094`
 
 #### Contract Address
 RFQ contract
