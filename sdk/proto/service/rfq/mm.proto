@@ -1,0 +1,59 @@
+// API for Market Makers
+
+syntax = "proto3";
+package service.rfq;
+
+option go_package = "github.com/celer-network/rfq-mm/sdk/service/rfq/proto";
+
+import "google/api/annotations.proto";
+import "service/rfq/model.proto";
+import "service/rfqmm/api.proto";
+
+service MMApi {
+  // APIs for market makers. All rpc methods require API key authentication.
+  rpc PendingOrders(PendingOrdersRequest) returns (PendingOrdersResponse) {
+    option (google.api.http) = {
+      post: "/v1/mm/getPendingOrders"
+      body: "*"
+    };
+  };
+  rpc UpdateOrders(UpdateOrdersRequest) returns (UpdateOrdersResponse) {
+    option (google.api.http) = {
+      post: "/v1/mm/updateOrders"
+      body: "*"
+    };
+  };
+  rpc UpdateConfigs(UpdateConfigsRequest) returns (UpdateConfigsResponse) {
+    option (google.api.http) = {
+      post: "/v1/mm/updateConfigs"
+      body: "*"
+    };
+  }
+}
+
+message PendingOrdersRequest {
+}
+
+message PendingOrdersResponse {
+  repeated PendingOrder orders = 1;
+}
+
+message OrderUpdates {
+  string quote_hash = 1;
+  OrderStatus order_status = 2;
+  string exec_tx_hash = 3;
+}
+
+message UpdateOrdersRequest {
+  repeated OrderUpdates updates = 1;
+}
+
+message UpdateOrdersResponse {
+}
+
+message UpdateConfigsRequest {
+  service.rfqmm.Config config = 1;
+}
+
+message UpdateConfigsResponse {
+}

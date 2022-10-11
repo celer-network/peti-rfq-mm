@@ -1,0 +1,16 @@
+[priceprovider]
+url = "https://cbridge-stat.s3.us-west-2.amazonaws.com/prod2/cbridge-price.json"
+
+[rfqserver]
+url = ""
+apikey = ""
+
+[mm]
+requestsigner = 5
+port = 6666
+# in second
+pricevalidperiod = 300
+securetransferperiod = 600
+# if faled to report token configs to rfq server, mm will be stucked and retry every <reportperiod> seconds until success.
+reportperiod = 5
+processperiod = 5

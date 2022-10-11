@@ -1,0 +1,27 @@
+[[multichain]]
+chainID = 5
+name = "Goerli"
+gateway = ""
+blkinterval = 15
+blkdelay = 5
+maxblkdelta = 5000
+rfq = "0x60CD75Ce8cB1e9C22efB56eB26E3DCf56ee8e354"
+[multichain.native]
+symbol = "ETH"
+address = "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6"
+decimals = 18
+
+[[multichain]]
+chainID = 97
+name = "BSC Testnet"
+gateway = "https://bsctestapi.terminet.io/rpc"
+blkinterval = 3
+blkdelay = 8
+maxblkdelta = 5000
+addgasgwei = 2
+addgasestimateratio = 0.3
+rfq = "0xB09d71298d807575B882e333548F30D887b57b54"
+[multichain.native]
+symbol = "BNB"
+address = ""
+decimals = 18

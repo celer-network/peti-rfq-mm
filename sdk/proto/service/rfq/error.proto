@@ -1,0 +1,19 @@
+syntax = "proto3";
+package service.rfq;
+
+option go_package = "github.com/celer-network/rfq-mm/sdk/service/rfq/proto";
+
+enum ErrCode {
+  ERROR_UNDEFINED = 0;
+  ERROR_COMMON = 1;
+  // generic error code for all invalid requests that are not specified below
+  ERROR_INVALID_REQUEST = 2;
+  // returned in Quote() if the MM rejects the quote
+  ERROR_MM_REJECTED_QUOTE = 3;
+  // returned in Quote() if the price's valid_thru is passed 
+  ERROR_PRICE_DEADLINE = 4; 
+  // returned in Quote() if the price sig is invalid 
+  ERROR_INVALID_SIG = 5;
+  // returned in Quote() if the src/dst deadline is invalid
+  ERROR_INVALID_DEADLINE = 6; 
+}

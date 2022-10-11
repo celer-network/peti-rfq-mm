@@ -1,0 +1,112 @@
+// API for RFQ users
+
+syntax = "proto3";
+package service.rfq;
+
+option go_package = "github.com/celer-network/rfq-mm/sdk/service/rfq/proto";
+
+import "common/token.proto";
+import "common/error.proto";
+import "service/rfq/model.proto";
+import "service/rfqmm/api.proto";
+
+service UserApi {
+  rpc GetConfigs(GetConfigsRequest) returns (GetConfigsResponse);
+  // gets prices from all market makers and returns the one with the highest amount out
+  rpc Price(PriceRequest) returns (PriceResponse);
+  // performs a "firm quote" at the MM using a price that is previously signed by the MM
+  // this API causes market maker to freeze up their fund therefore should only be used when necessary
+  // returns ERROR_PRICE_DEADLINE if the valid_thru in Price has passed
+  rpc Quote(QuoteRequest) returns (QuoteResponse);
+  rpc GetOrders(GetOrdersRequest) returns (GetOrdersResponse);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  rpc GetMarketMakers(GetMarketMakersRequest) returns (GetMarketMakersResponse);
+  rpc GetRefundExecMsgCallData(GetRefundExecMsgCallDataRequest) returns (GetRefundExecMsgCallDataResponse);
+}
+
+message GetConfigsRequest {
+}
+
+message GetConfigsResponse {
+  map<uint64, string> contract_addrs = 1;
+  repeated common.Token tokens = 2;
+}
+
+message PriceRequest {
+  common.Token src_token = 1;
+  common.Token dst_token = 2;
+  string src_amount = 3;
+  string dst_amount = 4;
+  // indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)
+  bool dst_native = 5;
+}
+
+message PriceResponse {
+  common.Err err = 1;
+  service.rfqmm.Price price = 2;
+  // protocol fee + mm charged fee
+  string fee = 3;
+  string mm_id = 4;
+  string tx_msg_fee = 5; // to pay for msg fee
+}
+
+message QuoteRequest {
+  service.rfqmm.Price price = 1;
+  string mm_id = 2;
+  string sender = 3;
+  string receiver = 4;
+  string refund_to = 5;
+  // unix epoch seconds
+  // deadlines are defined by the user. if no deadline is specified when quoting,
+  // default values will be supplied by the server.
+  int64 src_deadline = 6;
+  int64 dst_deadline = 7;
+  // indicates whether the user wants to receive native token on the dst chain 
+  // (only applicable if the dst_token in price is a native wrap)
+  bool dst_native = 8;
+  // indicates whether the user deposits native token or not
+  bool src_native = 9;
+}
+
+message QuoteResponse {
+  common.Err err = 1;
+  double src_token_usd_price = 2;
+  double dst_token_usd_price = 3;
+  service.rfqmm.Quote quote = 4;
+}
+
+message GetHistoryRequest {
+  // use empty string for first page
+  string next_page_token = 1;
+  uint64 page_size = 2;
+  string user_addr = 3;
+}
+
+message GetHistoryResponse {
+  repeated UserOrder orders = 2;
+}
+
+message GetOrdersRequest {
+  repeated string quote_hashes = 1;
+}
+
+message GetOrdersResponse {
+  repeated UserOrder orders = 1;
+}
+
+message GetMarketMakersRequest {}
+
+message GetMarketMakersResponse {
+  repeated MarketMaker market_makers = 1;
+}
+
+message GetRefundExecMsgCallDataRequest {
+  string quote_hash = 1;
+}
+
+message GetRefundExecMsgCallDataResponse {
+  bytes exec_msg_call_data = 1;
+  service.rfqmm.Quote quote = 2;
+  // indicates whether the user deposits native token or not
+  bool src_native = 3;
+}

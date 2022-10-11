@@ -1,0 +1,17 @@
+syntax = "proto3";
+package common;
+
+option go_package = "github.com/celer-network/rfq-mm/sdk/common";
+
+message Token {
+  uint64 chain_id = 1;
+  string symbol = 2;
+  string address = 3;
+  int32 decimals = 4;
+  string name = 5;
+  string logo_uri = 6;
+}
+
+message Tokens {
+  repeated Token tokens = 1;
+}

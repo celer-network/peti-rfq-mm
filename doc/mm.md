@@ -1,0 +1,540 @@
+# RFQ MM docs
+
+## Overview 
+
+Request For Quote (RFQ) system is running on top of Celer Inter-Chain Message Framework ([Celer IM](https://im-docs.celer.network/developer/celer-im-overview)) to enable secure and efficient intra- or inter-chain token swaps.
+
+This document describes the functions and operations of the market maker (MM), which is responsible for quoting and fulfilling orders for RFQ transactions.
+
+## Outline
+
+- [RFQ Basics](#rfq-basics)
+  - [Reach an agreement](#reach-an-agreement)
+  - [Swap on chain](#swap-on-chain)
+    - [srcDeposit](#srcdeposit)
+    - [dstTransfer](#dsttransfer)
+    - [srcRelease](#srcrelease)
+- [Become an MM](#become-an-mm)
+  - [Request for MM qualification](#request-for-mm-qualification)
+  - [Run MM application](#run-mm-application)
+- [Default MM application](#default-mm-application)
+  - [Installation](#installation)
+  - [Configuration](#configuration)
+  - [Running](#running)
+- [Customize your own MM application](#customize-your-own-mm-application)
+  - [Customize subcomponents](#customize-subcomponents)
+  - [Customize order processing](#customize-order-processing)
+  - [Customize request serving](#customize-request-serving)
+- [Support](#support)
+  - [Information](#information)
+  - [Debugging](#debugging)
+
+
+
+## RFQ Basics
+
+A successfull RFQ transaction consists two main processes:
+
+1. User and MM reach an agreement through RFQ Server
+2. User and MM swap tokens through RFQ contract
+
+### Reach an agreement
+
+```
+ ╔══════╗                            ╔════════════╗                           ╔═════╗
+ ║      ║                            ║            ║                           ║     ║
+ ║      ║                            ║      R     ║ < = Supported Tokens < =  ║     ║
+ ║      ║                            ║      F     ║                           ║     ║
+ ║   U  ║ = > Request Quotation = >  ║      Q     ║ = > Price Request = > = > ║     ║
+ ║   S  ║                            ║            ║                           ║  M  ║
+ ║   E  ║ < = < Quotation = < = < =  ║      S     ║ < = Price Response < = <  ║  M  ║
+ ║   R  ║                            ║      E     ║                           ║  s  ║
+ ║      ║ = > Confirm quotation = >  ║      V     ║ = > Quote Request = > = > ║     ║
+ ║      ║                            ║      E     ║                           ║     ║
+ ║      ║                            ║      R     ║ < = Quote Response < = <  ║     ║
+ ║      ║                            ║            ║                           ║     ║
+ ╚══════╝                            ╚════════════╝                           ╚═════╝
+```
+
+>Prerequisite: All MMs should report their supported tokens in a list to RFQ Server via [UpdateConfigs API](./sdk.md#func-client-updateconfigs)
+once after MM is ready.
+
+1. User requests quotation from RFQ Server for a possible swap: token X on chain A -> token Y on chain B
+2. RFQ Server got the request from User, and takes a look at all MMs' token config in order to determine who is available to 
+fulfill this swap. Then RFQ Server will send [Price request](./sdk.md#message-pricerequest) to all available MMs.
+3. MM got the price request from RFQ Server, and calculate how much token Y on chain B he would like to pay for exchanging
+token X on chain A, according to his fee strategy. Then MM will return his price response to RFQ Server along with his
+signature of this price response and a period for this price to be valid.
+4. RFQ Server collects price responses from available MMs and chooses only one MM for taking this swap order. The MM of
+which price response has the highest amount of token Y on chain B will be chosen by RFQ Server. Then the best price response
+will be returned to User as the requested quotation of his possible swap.
+    >NOTE.There is no chance for an MM with minor price to receive quote request from RFQ Server.
+5. If User accepts this quotation, he needs to confirm it through RFQ Server.
+6. When User confirms the quotation, RFQ Server will send [Quote request](./sdk.md#message-quoterequest) to the chosen MM.
+Quote request includes the signature produced by the MM during step 3, a suggested SrcDeadline for User by which User should finish
+locking his token X on chain A, a suggested DstDeadline for MM by which MM should finish transferring token Y to User on chain B.
+7. MM got the quote request from RFQ Server and verify his signature of price. As long as the 
+   1. signature is valid,
+   2. the period for this price to be valid has not yet passed,
+   3. suggested SrcDeadline and DstDeadline are both acceptable,
+   4. (optional) has sufficient token Y on chain B and freezes it,
+
+    MM can sign this quotation and return this signature to RFQ Server for later verification. 
+
+Once a good quote response is returned from an MM to RFQ Server, an agreement between certain User and MM is reached.
+
+### Swap on chain
+#### SrcDeposit
+```
+ ──────────────────────────────────────────────┬───────────────────────────────────────────────────
+ CHAIN A                                       │                                            CHAIN B
+ ┏━━━━┓                     ┏━━━━━━━━━━━━━┓    │    ┏━━━━━━━━━━━━━┓                    ┏━━━━┓            
+ ┃USER┃ > = srcDeposit >  > ┃     RFQ     ┃    │    ┃     RFQ     ┃                    ┃ MM ┃
+ ┗━━━━┛                     ┗━━━━━━━━━━━━━┛    │    ┗━━━━━━━━━━━━━┛                    ┗━━━━┛
+                                   ∨ send      │                                          ∧
+                                   v message1  │                                          ∧
+                            ┏━━━━━━━━━━━━━┓    │    ┏━━━━━━━━━━━━━┓                       ∧ inform MM:
+                            ┃ Message Bus ┃    │    ┃ Message Bus ┃                       ∧ User has
+                            ┗━━━━━━━━━━━━━┛    │    ┗━━━━━━━━━━━━━┛                       ∧ deposited
+                                   v           │                                          ∧
+ ──────────────────────────────────────────────┴───────────────────────────────────────────────────
+                                   v listened by sgn                                      ∧
+                             ╔═══════════════════════════════════╗                   ╔════════════╗
+                             ║   SGN (State Guardian Network)    ║ > query message > ║ RFQ Server ║
+                             ╚═══════════════════════════════════╝                   ╚════════════╝                                              
+                                                                                      
+```
+After User confirms a quotation, User is required to deposit token X to RFQ contract on chain A, by calling [srcDeposit]().
+During `srcDeposit`, a message would be sent via Message Bus, the core contract of Celer IM. As a consequence, the message
+would be catched by SGN via event listener, and co-signed by SGN's validators. Once the message has sufficient voting power,
+RFQ Server can fetch it from SGN and mark the corresponding swap to status `OrderStatus.STATUS_SRC_DEPOSITED`. Then the chosen MM will 
+be informed(in a polling way, see [PendingOrders](./sdk.md#func-client-pendingorders)) that User has deposited on chain A.
+
+#### DstTransfer
+```
+ ──────────────────────────────────────────────┬───────────────────────────────────────────────────
+ CHAIN A                                       │                                            CHAIN B
+                                               │                                       ┏━━━━┓
+                                               │          > = > transfer token > = > > ┃USER┃
+                                               │          ∧                            ┗━━━━┛
+ ┏━━━━┓                     ┏━━━━━━━━━━━━━┓    │    ┏━━━━━━━━━━━━━┓                    ┏━━━━┓          
+ ┃ MM ┃                     ┃     RFQ     ┃    │    ┃     RFQ     ┃ <  dstTransfer < < ┃ MM ┃
+ ┗━━━━┛                     ┗━━━━━━━━━━━━━┛    │    ┗━━━━━━━━━━━━━┛                    ┗━━━━┛
+   ∧                                           │          ∨ send                          
+   ∧ inform mm                                 │          v message2                       
+   ∧ and give him           ┏━━━━━━━━━━━━━┓    │    ┏━━━━━━━━━━━━━┓                       
+   ∧ a proof                ┃ Message Bus ┃    │    ┃ Message Bus ┃                        
+   ∧                        ┗━━━━━━━━━━━━━┛    │    ┗━━━━━━━━━━━━━┛                       
+   ∧                                           │          v                               
+ ──────────────────────────────────────────────┴───────────────────────────────────────────────────
+   ∧                                    listened by sgn   v                               
+ ╔════════════╗              ╔═══════════════════════════════════╗                   
+ ║ RFQ Server ║  < message < ║   SGN (State Guardian Network)    ║ 
+ ╚════════════╝              ╚═══════════════════════════════════╝                                                                 
+                                                                                      
+```
+When MM is informed that User has deposited, MM should double-check the validity of information from RFQ Server in case of 
+a hacked or malicious server. If everything goes well, then MM can call [dstTransfer]() to transfer token Y to User on chain B.
+During `dstTransfer`, 
+* a message would be sent via Message Bus contract, catched by SGN, and co-signed by SGN's validator.
+* certain amount of token Y would be transferred from MM, and transferred to User after the message is successfully sent out.
+
+Once the message has sufficient voting power, RFQ Server can fetch it from SGN and mark the corresponding swap to status
+`OrderStatus.STATUS_DST_TRANSFERRED`. Then the chosen MM will be informed(in a polling way, see [PendingOrders](./sdk.md#func-client-pendingorders))
+that `dstTransfer` is successful, and `srcRelease`is available on chain A to release token. 
+As a proof of order fulfillment generated by SGN is required to release token, RFQ Server will also help deliver it to MM.
+ 
+#### SrcRelease
+```
+ ──────────────────────────────────────────────┬───────────────────────────────────────────────────
+ CHAIN A                                       │                                            CHAIN B
+    < < < < < transfer token < < < <           │
+    v                              ∧           │
+ ┏━━━━┓                     ┏━━━━━━━━━━━━━┓    │    ┏━━━━━━━━━━━━━┓                                
+ ┃ MM ┃ > = srcRelease >  > ┃     RFQ     ┃    │    ┃     RFQ     ┃                    
+ ┗━━━━┛                     ┗━━━━━━━━━━━━━┛    │    ┗━━━━━━━━━━━━━┛                    
+                                   ∨ verify    │                                          
+                                   v proof     │                                          
+                            ┏━━━━━━━━━━━━━┓    │    ┏━━━━━━━━━━━━━┓                        
+                            ┃ Message Bus ┃    │    ┃ Message Bus ┃                     
+                            ┗━━━━━━━━━━━━━┛    │    ┗━━━━━━━━━━━━━┛                       
+                                               │                                          
+ ──────────────────────────────────────────────┴───────────────────────────────────────────────────
+                                                                        
+```
+When MM got the proof of order fulfillment, MM can call [srcRelease]() to release token X on chain A. During `srcRelease`,
+the proof is verified via MessageBus contract. If all checks are passed, the locked token X which is deposited by User
+would be transferred to MM after deducting RFQ protocol fee. Then the swap on chain between User and MM is completed.
+
+## Become an MM
+
+### Request for MM qualification
+An API key is needed for an MM to use RFQ Server's services. Contact us for requesting an API key.
+
+### Run MM application
+For default MM application, see the guide at [Running](#running).
+
+For customized MM application, run it as you preferred.
+
+## Default MM application
+
+### Installation
+
+1. Download `rfq-mm`
+```
+git clone https://github.com/celer-network/rfq-mm.git
+cd rfq-mm
+```
+2. Build `rfq-mm`
+```
+make install
+```
+
+### Configuration
+Make a new folder to store your configuration file and ETH keystore file.
+```
+mkdir .rfq-mm
+cd rfq-mm
+mkdir config eth-ks
+touch config/chain.toml config/lp.toml config/fee.toml config/mm.toml
+// move all used address's keystore file into .rfq-mm/eth-ks/
+mv <path-to-your-eth-keystore-file> eth-ks/<give-a-name>.json
+```
+The `.rfq-mm` folder's structure will looks like:
+```
+.rfq-mm/
+  - config/
+      - chain.toml
+      - lp.toml
+      - fee.toml
+      - mm.toml
+  - eth-ks/
+      - <give-a-name>.json
+      - <give-b-name>.json
+```
+
+1. Chain configuration
+
+Each chain is configured by a `multichain`.
+Take Goerli as an example. Before using, don't forget to update `chainId`, `name`, and fill up `gateway` and `rfq`.
+RFQ contract address could be found at [Information](#information).
+
+```
+[[multichain]]
+chainID = 5
+name = "Goerli"
+gateway = "<your-goerli-rpc>" # fill in your Goerli rpc provider url
+rfq = "<copy-addr-from-'Support->Contract address'>"
+blkdelay = 5 # how many blocks confirmations are required
+blkinterval = 15 # polling interval for querying tx's status
+# belows are optional transaction options
+# maxfeepergasgwei = 10 # acceptable max fee price
+# maxPriorityFeePerGasGwei = 2 # acceptable max priority fee price
+# gaslimit = 200000 # fix gas limit and skip gas estimation, often used for debuging
+# addgasestimateratio = 0.3 # adjust result from gas estimation, actual gasLimit = (1+addgasestimateratio)*estimation 
+[multichain.native]
+symbol = "ETH"
+# if any liquidity of native token or wrapped native token on this chain is configured in lp.toml, this address should 
+# be set, and set to wrapped native token address.
+address = "<wrapped-native-token-address>"
+decimals = 18
+```
+
+Transaction options are used in condition. Normally, if you got some error about "out of gas", we recommend using
+`addgasestimateratio` with value `0.3` at first, and gradually increase its value if the error still occurs.
+
+A dubug tip: if you got any error not about gas during pre-running, and you don't figure out the reason, try give a `gaslimit`
+that is big enough. After the transaction is sent, debug it in [Tenderly](https://dashboard.tenderly.co/).
+
+2. Liquidity configuration
+
+Liquidity is configured per chain and per token. An example full configuration of liquidity on Goerli is:
+```
+[[lp]]
+chainid = 5
+keystore = "./eth-ks/<give-a-name>.json"
+passphrase = "<password-of-your-keystore>"
+# release native token or wrapped native token on this chain, used when the token deposited by User is native token or wrapped native token
+releasenative = false
+[[lp.liqs]]
+address = "0xf4B2cbc3bA04c478F0dC824f4806aC39982Dce73"
+symbol = "USDT"
+# token's available amount. if not set, would query the current token balance during initialization
+amount = "5000000000"
+# the amount of token to be approved to RFQ contract during initialization
+approve = "1000000000000"
+decimals = 6
+# how long you prefer to freeze this token. The unit is second.
+freezetime = 300
+[[lp.liqs]]
+# address of full `f` represents native token
+address = "0xffffffffffffffffffffffffffffffffffffffff"
+symbol = "ETH"
+#amount = "0"
+decimals = 18
+freezetime = 200
+```
+You can use different account for each chain or just use one account for all chains. `keystore` should set to path of your
+keystore file relative to `.rfq-mm` floder.
+
+For each token, `address`, `symbol`, `decimals` and `freezetime` are required, while `amount` and `approve` are optional.
+
+- `freezetime`: How long the MM prefer to freeze a token. Take 300 as example. It means, counting from the User confirm a 
+quotation, he should finish depositing token within 300 second.
+- `amount`: How much token the MM could supply. MM can set it to any value regardless of current token balance. If it is
+not set, current token balance would be used instead.
+- `approve`: How much token will be approved to RFQ contract. If it is set, transaction would be sent during initialization
+for approving. *Once MM has approved sufficient amount, remove this field to prevent re-approve.*
+- `address`: Token address. In particular, `0xffffffffffffffffffffffffffffffffffffffff` is used to represent native token.
+*If native token is configured for one chain, relatively `multichain.native.address` must be set and set to wrapped native token address*.
+
+3. Fee configuration
+
+Fee strategy is configured globally with overrides per chain pair and per token pair. An example full configuration of 
+fee is:
+```
+[fee]
+# how much gas of dst chain you wanna charge, should be higher than actual consumption
+dstgascost = 100000
+# how much gas of src chain you wanna charge, should be higher than actual consumption
+srcgascost = 150000
+# global percentage fee, 100% = 1000000
+percglobal = 1000
+
+[[fee.gasprices]]
+chainid = 5
+# how much wei you wanna charge for each gas consumed 
+price = 5000000000
+
+[[fee.gasprices]]
+chainid = 97
+# how much wei you wanna charge for each gas consumed 
+price = 7000000000
+
+[[fee.chainoverrides]]
+# override percentage fee from srcchainid to dstchainid
+srcchainid = 5
+dstchainid = 97
+perc = 2000
+
+[[fee.tokenoverrides]]
+# override percentage fee from srctoken on srcchainid to dsttoken on dstchainid
+srcchainid = 5
+srctoken = "0xf4B2cbc3bA04c478F0dC824f4806aC39982Dce73"
+dstchainid = 97
+dsttoken = "0x7d43AABC515C356145049227CeE54B608342c0ad"
+perc = 3000
+```
+
+Except of `fee.chainoverrides` and `fee.tokenoverrides`, all the other fields are required for fee configuration. Generally,
+MM needs to separately send one tx on dst and src chain, in order to complete a swap order. That's  why we need
+to configure `fee.dstgascost`, `fee.srcgascost` and `fee.gasprice`. The actual charged fee value to cover gas consumption
+on two chains will be
+`fee.dstgascost * <fee.gasprice on dst> * <current-native-token-price-in-wei> + fee.srcgascost * <fee.gasprice on src> * <current-native-token-price-in-wei>`. 
+At last, the fee value will be converted to token amount which is deducted from the amount of token transferred to User.
+
+4. MM configuration
+
+This configuration contains several important parameters related to MM application's operation.
+```
+[priceprovider]
+# url required by default price provider implementation
+url = "https://cbridge-stat.s3.us-west-2.amazonaws.com/prod2/cbridge-price.json"
+
+[rfqserver]
+url = "<url-of-rfq-server>"
+apikey = "<your-api-key>"
+
+[mm]
+# indicates which chain's signer will be used as request signer
+requestsigner = 5
+# port that mm listens on
+port = 6666
+# all periods' unit is second
+# indicates the period during which a price response from this mm is valid
+pricevalidperiod = 300
+# indicates the minimum period for this mm to complete transferring on dst chain, couting from the user confirms the quotation
+securetransferperiod = 600
+# if faled to report token configs to rfq server, mm will be stucked and retry every <reportperiod> seconds until success.
+reportperiod = 5
+# time interval for getting and processing pending orders from rfq server
+processperiod = 5
+```
+Do not modify `priceprovider.url`. A large json format data of token prices stored under `priceprovider.url`, and is updated
+periodically by other external process. At present, it's the only implementation of price service within default MM application.
+If you're not comfortable with this implementation, you can either try to customize your own MM application or waiting for
+later updates of default MM application.
+
+Get `rfqserver.url` at [Information](#information) and fill up your API key.
+
+As mentioned before, MM should be able to sign any data and verify own signatures. Within default MM application, one 
+of the accounts configured in `lp.toml` is used as request signer to sign price and quote response. The chosen account is
+identified by `requestsigner` of which value matches with `lp.chainid`.
+
+### Running
+
+Create a rfq-mm system service
+```
+touch /etc/systemd/system/rfq-mm.service
+# create the log directory for executor
+mkdir -p /var/log/rfq-mm
+```
+
+>IMPORTANT: check if the user, user group and paths defined in your systemd file are correct.
+
+```
+# rfq-mm.service
+
+[Unit]
+Description=Default MM application
+After=network-online.target
+
+[Service]
+Environment=HOME=/home/ubuntu
+ExecStart=/home/ubuntu/go/bin/rfq-mm start \
+  --home /home/ubuntu/.rfq-mm/ \
+  --logdir /var/log/rfq-mm/app --loglevel debug
+StandardError=append:/var/log/rfq-mm/error.log
+Restart=always
+RestartSec=10
+User=ubuntu
+Group=ubuntu
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
+```
+Enable and start executor service
+```
+sudo systemctl enable rfq-mm
+sudo systemctl start rfq-mm
+// Check if logs look ok
+tail -f -n30 /var/log/rfq-mm/app/<log-file-with-start-time>.log
+```
+
+## Customize your own MM application
+
+With the [SDK](./sdk.md#sdk), the way to customize your own MM application is totally up to yourself, as long as it meets
+minimum requirements:
+* Implement [ApiServer](./sdk.md#interface-apiserver)
+* Utilize [RFQ Client](./sdk.md#type-client) to report supported tokens to RFQ Server
+* Utilize [RFQ Client](./sdk.md#type-client) to get pending orders, process orders, and update orders
+
+Besides, MM is suggested to have the ability of customizing fee and managing his liquidity on different chain, which includes but not limited
+to:
+
+- flexible fee configuration
+- freeze and unfreeze requested token at appropriate time
+- reuse the just released token for next swap orders.
+- withdraw and add liquidity from/to remote liquidity pool if needed (It's not supported now by default MM application)
+
+At last, do not forget to start serving requests, for example:
+```go
+yourMMApp := NewYourMMApp(...)
+listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+if err != nil {
+	panic(err)
+}
+grpcServer := grpc.NewServer(ops...)
+rfqmmproto.RegisterApiServer(grpcServer, yourMMApp)
+grpcServer.Serve(listener)
+```
+
+But if you think the struture of [Server](./sdk.md#type-server) is ok, then you can only customize its subcomponents that
+you want to change. With this Server, you can still customize how does it serve price&quote requests and process orders.
+
+### Customize subcomponents
+There are four subcomponents, which are:
+* [Chain Querier](./sdk.md#interface-chainquerier)
+* [Liquidity Provider](./sdk.md#interface-liquidityprovider)
+* [Amount Calculator](./sdk.md#interface-amountcalculator)
+* [Request Signer](./sdk.md#interface-requestsigner)
+
+Click on each to see the interface detail.
+
+### Customize order processing
+Requirements:
+* [Validate Quote](./sdk.md#func-server-validatequote) for each order before processing it 
+* double check any information comes from RFQ Server before transferring out token, especially for User has deposited
+* stop processing order if there is any unhandled error
+* as a consequence of RFQ Server help MMs maintain orders, an MM should timely update the status of an order through
+  [UpdateOrders API](./sdk.md#func-client-updateorders). The most important times to call this api are:
+  1. update to `OrderStatus_STATUS_MM_REJECTED` at any appropriate time when the MM thinks he should reject this order before any token transfer on dst chain.
+  2. update to `OrderStatus_STATUS_MM_DST_EXECUTED` when the MM has sent a tx on dst chain for transferring token to the User, regardless of whether it's mined or not and its execution status.
+  3. update to `OrderStatus_STATUS_MM_SRC_EXECUTED` when the MM has sent a tx on src chain for releasing token to himself, regardless of whether it's mined or not and its execution status.
+  4. specially, update order from `OrderStatus_STATUS_SRC_DEPOSITED` to `OrderStatus_STATUS_REFUND_INITIATED` when it's a 
+same chain swap `quote.GetSrcChainId() == quote.GetDstChainId()` and `quote.DstDeadline` has passed.
+
+
+Example:
+```go
+// server := NewServer(...)
+if server.Ctl == nil {
+    log.Panicln("nil control channel")
+}
+ticker := time.NewTicker(time.Duration(server.Config.ProcessPeriod) * time.Second)
+for {
+    select {
+    case <-ticker.C:
+    // check component's functionality
+    if server.LiquidityProvider.IsPaused() {
+        server.StopProcessing("liquidity provider is paused in some reason")
+        continue
+    }
+    resp, err := server.RfqClient.PendingOrders(context.Background(), &rfqproto.PendingOrdersRequest{})
+    if err != nil {
+        // handler err
+        continue
+    }
+	// your customized processOrders
+    // processOrders(server, resp.Orders)
+    case <-server.Ctl:
+        return
+    }
+}
+```
+
+### Customize request serving
+If you want to customize request serving, you'd better package Server into a new structure. So that you can implement new
+Price and Quote, and share the subcomponents of Server at the same time.
+
+Example
+```go
+type YourMMApp struct {
+	Server *rfqmm.Server
+}
+func (mm *YourMMApp) Price(ctx context.Context, request *proto.PriceRequest) (response *proto.PriceResponse, err error) {
+	// todo, remove panic() and write your own implementation
+	panic()
+}
+func (mm *YourMMApp) Quote(ctx context.Context, request *proto.QuoteRequest) (response *proto.QuoteResponse, err error) {
+    // todo, remove panic() and write your own implementation
+    panic()
+}
+func (mm *YourMMApp) Serve(port int, ops ...grpc.ServerOption) {
+    listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+    if err != nil {
+        panic(err)
+    }
+    grpcServer := grpc.NewServer(ops...)
+    proto.RegisterApiServer(grpcServer, mm)
+    grpcServer.Serve(listener)
+}
+```
+
+## Support
+
+### Information
+
+#### Server
+RFQ Server URL: `https://cbridge-stat.s3.us-west-2.amazonaws.com/prod2/cbridge-price.json`
+
+#### Contract Address
+RFQ contract
+* Goerli: [0x60CD75Ce8cB1e9C22efB56eB26E3DCf56ee8e354](https://goerli.etherscan.io/address/0x60CD75Ce8cB1e9C22efB56eB26E3DCf56ee8e354)
+* BSC Testnet: [0xB09d71298d807575B882e333548F30D887b57b54](https://testnet.bscscan.com/address/0xB09d71298d807575B882e333548F30D887b57b54)
+
+Wrapped native contract
+* Goerli: [0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6](https://goerli.etherscan.io/address/0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6)
+
+### Debugging

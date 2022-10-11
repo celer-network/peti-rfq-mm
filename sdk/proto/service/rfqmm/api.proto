@@ -1,0 +1,117 @@
+syntax = "proto3";
+package service.rfqmm;
+
+import "common/token.proto";
+import "common/error.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/celer-network/rfq-mm/sdk/service/rfqmm/proto";
+
+service api {
+  rpc Price(PriceRequest) returns (PriceResponse) {
+    option (google.api.http) = {
+      post: "/v1/rfqmm/price"
+      body: "*"
+    };
+  };
+  rpc Quote(QuoteRequest) returns (QuoteResponse) {
+    option (google.api.http) = {
+      post: "/v1/rfqmm/quote"
+      body: "*"
+    };
+  };
+}
+
+message PriceRequest {
+  common.Token src_token = 1;
+  common.Token dst_token = 2;
+  string src_amount = 3;
+  string dst_amount = 4;
+  // indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)
+  bool dst_native = 5;
+}
+
+message PriceResponse {
+  common.Err err = 1;
+  // if receiveAmount is specified in the request, it would be the price of receiveToken in sendToken and vice versa.
+  Price price = 2;
+}
+
+message QuoteRequest {
+  Price price = 1;
+  Quote quote = 2;
+  // indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)
+  bool dst_native = 3;
+}
+
+message QuoteResponse {
+  common.Err err = 1;
+  string quote_sig = 2;
+}
+
+message Config {
+  repeated common.Token tokens = 2;
+}
+
+message Price {
+  common.Token src_token = 1;
+  // src_amount reflects the total amount of src_token the user should deposit in the contract on 
+  // the src chain it should include rfq protocol fee + msg fee + mm charged fee
+  string src_amount = 2;
+  common.Token dst_token = 3;
+  string src_release_amount = 4;
+  string dst_amount = 5;
+  // fee = mm fee + msg fee + src tx gas cost + dst tx gas cost
+  string fee_amount = 6;
+  // unix epoch milliseconds. the time before which the price response is valid for Quote
+  int64 valid_thru = 7;
+  string mm_addr = 8;
+  // sig(hash('rfq price', mm_addr, valid_thru, src_chain_id, token_in, amount_in, dst_chain_id, token_out, amount_out))
+  // when calling Quote(), mm uses this signature to verify the price content is agreed by them previously
+  // and is not beyond deadline.
+  string sig = 9;
+  // the maximum src deposit period that is expected by mm, will be started from the time when mm receives the quote request
+  int64 src_deposit_period = 10;
+  // the minimum dst transfer period that is expected by mm, will be started from the time when mm receives the quote request
+  int64 dst_transfer_period = 11;
+}
+
+
+// some of the fields map to the Quote struct in the RFQ contract
+message Quote {
+  // the quote hash
+  string hash = 1;
+  // the input token amount on the src chain
+  common.Token src_token = 2;
+  string src_amount = 3;
+  // the token amount (same token as src_token) that the market maker will receive by filling this quote
+  string src_release_amount = 4;
+  // the token amount out on the dst chain to be received by the user
+  common.Token dst_token = 5;
+  string dst_amount = 6;
+  // the deadline before which the user can submit on the src chain
+  int64 src_deadline = 7;
+  // the time after which the order is eligible for refund
+  int64 dst_deadline = 8;
+  // nonce that is determined by the server that is used to dedup quotes
+  uint64 nonce = 9;
+  // sender of the src tx (msg.sender). it's also the user who deposits the src fund
+  string sender = 10; 
+  // the receiver of the token on the dst chain
+  string receiver = 11; 
+  // the receiver of the refund (if any) on the src chain
+  string refund_to = 12; 
+  // the address of the liquidity provider who's going to transfer fund to the user on the dst chain
+  string mm_addr = 13; 
+}
+
+enum ErrCode {
+  ERROR_UNDEFINED = 0;
+  ERROR_INVALID_ARGUMENTS = 1;
+  ERROR_LIQUIDITY_PROVIDER = 2;
+  ERROR_PRICE_PROVIDER = 3;
+  ERROR_AMOUNT_CALCULATOR = 4;
+  ERROR_REQUEST_SIGNER = 5;
+  ERROR_LIQUIDITY_MANAGER = 6;
+  ERROR_CHAIN_MANAGER = 7;
+}

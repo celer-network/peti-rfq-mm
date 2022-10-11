@@ -1,0 +1,45 @@
+syntax = "proto3";
+package common;
+
+option go_package = "github.com/celer-network/rfq-mm/sdk/common";
+
+message ChainConfig {
+  uint64 chain_id = 1;
+  string name = 2;
+  string gateway = 3;
+  uint64 block_interval = 4;
+  uint64 block_delay = 5;
+  uint64 max_block_delta = 6;
+  uint64 forward_block_delay = 7;
+  uint64 gas_limit = 8;
+  float add_gas_estimate_ratio = 9;
+  // Legacy gas price flags
+  uint64 add_gas_gwei = 10;
+  uint64 min_gas_gwei = 11;
+  uint64 max_gas_gwei = 12;
+  string force_gas_gwei = 13;
+  // EIP-1559 gas price flags
+  uint64 max_fee_per_gas_gwei = 14;
+  uint64 max_priority_fee_per_gas_gwei = 15;
+  // if proxy_port > 0, a proxy with this port will be created to support some special chain such as harmony, celo.
+  // chainID will be used to determined which type proxy to create, so make sure the chainID is supported in the "endpoint-proxy"
+  // create a proxy to the Gateway, and eth-client will be created to "127.0.0.1:ProxyPort"
+  // more detail, https://github.com/celer-network/endpoint-proxy
+  int64 proxy_port = 16;
+  // cbridge contract address
+  string c_bridge = 17;
+  // OriginalTokenVault contract address
+  string o_t_vault = 18;
+  // PeggedTokenBridge contract address
+  string p_t_bridge = 19;
+  // OriginalTokenVaultV2 contract address
+  string o_t_vault2 = 20;
+  // PeggedTokenBridgeV2 contract address
+  string p_t_bridge2 = 21;
+  // WithdrawInbox contract address
+  string wd_inbox = 22;
+  // MsgBus contract address
+  string msg_bus = 23;
+  // XferAgt contract address
+  string xfer_agt = 24;
+}

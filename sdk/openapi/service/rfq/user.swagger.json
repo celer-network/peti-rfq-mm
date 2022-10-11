@@ -1,0 +1,370 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "service/rfq/user.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "UserApi"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {},
+  "definitions": {
+    "commonErr": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "msg": {
+          "type": "string"
+        }
+      }
+    },
+    "commonToken": {
+      "type": "object",
+      "properties": {
+        "chainId": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "decimals": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "name": {
+          "type": "string"
+        },
+        "logoUri": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rfqGetConfigsResponse": {
+      "type": "object",
+      "properties": {
+        "contractAddrs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/commonToken"
+          }
+        }
+      }
+    },
+    "rfqGetHistoryResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rfqUserOrder"
+          }
+        }
+      }
+    },
+    "rfqGetMarketMakersResponse": {
+      "type": "object",
+      "properties": {
+        "marketMakers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rfqMarketMaker"
+          }
+        }
+      }
+    },
+    "rfqGetOrdersResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rfqUserOrder"
+          }
+        }
+      }
+    },
+    "rfqGetRefundExecMsgCallDataResponse": {
+      "type": "object",
+      "properties": {
+        "execMsgCallData": {
+          "type": "string",
+          "format": "byte"
+        },
+        "quote": {
+          "$ref": "#/definitions/rfqmmQuote"
+        },
+        "srcNative": {
+          "type": "boolean",
+          "title": "indicates whether the user deposits native token or not"
+        }
+      }
+    },
+    "rfqMarketMaker": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "rfqOrderStatus": {
+      "type": "string",
+      "enum": [
+        "STATUS_PENDING",
+        "STATUS_SRC_DEPOSITED",
+        "STATUS_MM_REJECTED",
+        "STATUS_MM_DST_EXECUTED",
+        "STATUS_DST_TRANSFERRED",
+        "STATUS_MM_SRC_EXECUTED",
+        "STATUS_REFUND_INITIATED",
+        "STATUS_SRC_RELEASED",
+        "STATUS_REFUNDED"
+      ],
+      "default": "STATUS_PENDING",
+      "title": "- STATUS_PENDING: an order first enters the pending status when an MM returns a firm quote upon a user's quote request.\n - STATUS_SRC_DEPOSITED: reached after the user's call to the RFQ contract to deposit funds\n - STATUS_MM_REJECTED: reached only if an MM actively calls back to the RFQ server to mark the order as rejected. once marked as rejected, \nthe same order will not appear in the PendingOrders() anymore.\nnote that MMs can choose to not implement this active call and hence this status will never be reached.\n - STATUS_MM_DST_EXECUTED: reached only if an MM actively calls back to the RFQ server to mark the order as dst executed\nwhen they finish submitting the tx on the dst chain to transfer fund to user.\nnote that MMs can choose to not implement this active call and hence this status will never be reached.\n - STATUS_DST_TRANSFERRED: this status marks the observation of the on-chain event DstTransferred\nthis also means that msg2 is on its way but not yet arrived on the src chain\nnote that to the user, when an order reaches this status, it can be considered completed\n - STATUS_MM_SRC_EXECUTED: reached only if an MM actively calls back to the RFQ server to mark the order as src executed\nwhen they finish submitting the tx on the src chain to release fund to MM.\nnote that MMs can choose to not implement this active call and hence this status will never be reached.\n - STATUS_REFUND_INITIATED: this status marks the observation of the on-chain event RefundInitiated upon msg1 execution\n - STATUS_SRC_RELEASED: this status marks the observation of the on-chain event SrcReleased upon msg2 execution\n - STATUS_REFUNDED: this status marks the observation of the on-chain event Refunded upon msg3 execution"
+    },
+    "rfqUserOrder": {
+      "type": "object",
+      "properties": {
+        "quote": {
+          "$ref": "#/definitions/rfqmmQuote"
+        },
+        "dstNative": {
+          "type": "boolean",
+          "title": "indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "int64",
+          "title": "unix epoch seconds"
+        },
+        "status": {
+          "$ref": "#/definitions/rfqOrderStatus"
+        },
+        "mmId": {
+          "type": "string"
+        },
+        "mmAddr": {
+          "type": "string"
+        },
+        "srcDepositTxHash": {
+          "type": "string",
+          "title": "the tx in which the user deposits the fund on the src chain"
+        },
+        "dstTransferTxHash": {
+          "type": "string",
+          "title": "the tx in which the fund is transferred from MMs address to the user on the dst chain"
+        },
+        "srcReleaseTxHash": {
+          "type": "string",
+          "title": "the tx in which the fund is released to the MM on the src chain"
+        },
+        "dstRefundInitTxHash": {
+          "type": "string",
+          "title": "the tx in which the refund is initiated on the dst chain"
+        },
+        "srcRefundTxHash": {
+          "type": "string",
+          "title": "the tx in which the fund is refunded to the user on the src chain"
+        }
+      }
+    },
+    "rfqmmPrice": {
+      "type": "object",
+      "properties": {
+        "srcToken": {
+          "$ref": "#/definitions/commonToken"
+        },
+        "srcAmount": {
+          "type": "string",
+          "title": "src_amount reflects the total amount of src_token the user should deposit in the contract on \nthe src chain it should include rfq protocol fee + msg fee + mm charged fee"
+        },
+        "dstToken": {
+          "$ref": "#/definitions/commonToken"
+        },
+        "srcReleaseAmount": {
+          "type": "string"
+        },
+        "dstAmount": {
+          "type": "string"
+        },
+        "feeAmount": {
+          "type": "string",
+          "title": "fee = mm fee + msg fee + src tx gas cost + dst tx gas cost"
+        },
+        "validThru": {
+          "type": "string",
+          "format": "int64",
+          "title": "unix epoch milliseconds. the time before which the price response is valid for Quote"
+        },
+        "mmAddr": {
+          "type": "string"
+        },
+        "sig": {
+          "type": "string",
+          "description": "sig(hash('rfq price', mm_addr, valid_thru, src_chain_id, token_in, amount_in, dst_chain_id, token_out, amount_out))\nwhen calling Quote(), mm uses this signature to verify the price content is agreed by them previously\nand is not beyond deadline."
+        },
+        "srcDepositPeriod": {
+          "type": "string",
+          "format": "int64",
+          "title": "the maximum src deposit period that is expected by mm, will be started from the time when mm receives the quote request"
+        },
+        "dstTransferPeriod": {
+          "type": "string",
+          "format": "int64",
+          "title": "the minimum dst transfer period that is expected by mm, will be started from the time when mm receives the quote request"
+        }
+      }
+    },
+    "rfqmmQuote": {
+      "type": "object",
+      "properties": {
+        "hash": {
+          "type": "string",
+          "title": "the quote hash"
+        },
+        "srcToken": {
+          "$ref": "#/definitions/commonToken",
+          "title": "the input token amount on the src chain"
+        },
+        "srcAmount": {
+          "type": "string"
+        },
+        "srcReleaseAmount": {
+          "type": "string",
+          "title": "the token amount (same token as src_token) that the market maker will receive by filling this quote"
+        },
+        "dstToken": {
+          "$ref": "#/definitions/commonToken",
+          "title": "the token amount out on the dst chain to be received by the user"
+        },
+        "dstAmount": {
+          "type": "string"
+        },
+        "srcDeadline": {
+          "type": "string",
+          "format": "int64",
+          "title": "the deadline before which the user can submit on the src chain"
+        },
+        "dstDeadline": {
+          "type": "string",
+          "format": "int64",
+          "title": "the time after which the order is eligible for refund"
+        },
+        "nonce": {
+          "type": "string",
+          "format": "uint64",
+          "title": "nonce that is determined by the server that is used to dedup quotes"
+        },
+        "sender": {
+          "type": "string",
+          "title": "sender of the src tx (msg.sender). it's also the user who deposits the src fund"
+        },
+        "receiver": {
+          "type": "string",
+          "title": "the receiver of the token on the dst chain"
+        },
+        "refundTo": {
+          "type": "string",
+          "title": "the receiver of the refund (if any) on the src chain"
+        },
+        "mmAddr": {
+          "type": "string",
+          "title": "the address of the liquidity provider who's going to transfer fund to the user on the dst chain"
+        }
+      },
+      "title": "some of the fields map to the Quote struct in the RFQ contract"
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "servicerfqPriceResponse": {
+      "type": "object",
+      "properties": {
+        "err": {
+          "$ref": "#/definitions/commonErr"
+        },
+        "price": {
+          "$ref": "#/definitions/rfqmmPrice"
+        },
+        "fee": {
+          "type": "string",
+          "title": "protocol fee + mm charged fee"
+        },
+        "mmId": {
+          "type": "string"
+        },
+        "txMsgFee": {
+          "type": "string"
+        }
+      }
+    },
+    "servicerfqQuoteResponse": {
+      "type": "object",
+      "properties": {
+        "err": {
+          "$ref": "#/definitions/commonErr"
+        },
+        "srcTokenUsdPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "dstTokenUsdPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "quote": {
+          "$ref": "#/definitions/rfqmmQuote"
+        }
+      }
+    }
+  }
+}

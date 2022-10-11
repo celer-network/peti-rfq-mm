@@ -1,0 +1,36 @@
+[fee]
+dstgascost = 100000
+srcgascost = 150000
+percglobal = 1000
+
+[[fee.chainoverrides]]
+srcchainid = 5
+dstchainid = 97
+perc = 2000
+
+[[fee.chainoverrides]]
+srcchainid = 97
+dstchainid = 5
+perc = 2000
+
+[[fee.tokenoverrides]]
+srcchainid = 5
+srctoken = "0xf4B2cbc3bA04c478F0dC824f4806aC39982Dce73"
+dstchainid = 97
+dsttoken = "0x7d43AABC515C356145049227CeE54B608342c0ad"
+perc = 3000
+
+[[fee.tokenoverrides]]
+srcchainid = 97
+srctoken = "0x855fC87f7F14Db747ef27603b02bAe579ba947B6"
+dstchainid = 5
+dsttoken = "0xCbE56b00d173A26a5978cE90Db2E33622fD95A28"
+perc = 3000
+
+[[fee.gasprices]]
+chainid = 5
+price = 5000000000
+
+[[fee.gasprices]]
+chainid = 97
+price = 7000000000

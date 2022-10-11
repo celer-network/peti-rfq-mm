@@ -1,0 +1,73 @@
+syntax = "proto3";
+package service.rfq;
+
+option go_package = "github.com/celer-network/rfq-mm/sdk/service/rfq/proto";
+
+import "service/rfqmm/api.proto";
+
+enum OrderStatus {
+  // an order first enters the pending status when an MM returns a firm quote upon a user's quote request.
+  STATUS_PENDING = 0;
+  // reached after the user's call to the RFQ contract to deposit funds
+  STATUS_SRC_DEPOSITED = 10;
+  // reached only if an MM actively calls back to the RFQ server to mark the order as rejected. once marked as rejected, 
+  // the same order will not appear in the PendingOrders() anymore.
+  // note that MMs can choose to not implement this active call and hence this status will never be reached.
+  STATUS_MM_REJECTED = 20;
+  // reached only if an MM actively calls back to the RFQ server to mark the order as dst executed
+  // when they finish submitting the tx on the dst chain to transfer fund to user.
+  // note that MMs can choose to not implement this active call and hence this status will never be reached.
+  STATUS_MM_DST_EXECUTED = 30;
+  // this status marks the observation of the on-chain event DstTransferred
+  // this also means that msg2 is on its way but not yet arrived on the src chain
+  // note that to the user, when an order reaches this status, it can be considered completed
+  STATUS_DST_TRANSFERRED = 40;
+  // reached only if an MM actively calls back to the RFQ server to mark the order as src executed
+  // when they finish submitting the tx on the src chain to release fund to MM.
+  // note that MMs can choose to not implement this active call and hence this status will never be reached.
+  STATUS_MM_SRC_EXECUTED = 50;
+  // this status marks the observation of the on-chain event RefundInitiated upon msg1 execution
+  STATUS_REFUND_INITIATED = 60;
+  // this status marks the observation of the on-chain event SrcReleased upon msg2 execution
+  STATUS_SRC_RELEASED = 70;
+  // this status marks the observation of the on-chain event Refunded upon msg3 execution
+  STATUS_REFUNDED = 80;
+}
+
+// for MM use
+message PendingOrder {
+  service.rfqmm.Quote quote = 1;
+  string src_deposit_tx_hash = 2;
+  // indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)
+  bool dst_native = 3;
+  // unix epoch seconds
+  bytes exec_msg_call_data = 4;
+  string quote_sig = 5;
+  rfq.OrderStatus status = 6;
+}
+
+message UserOrder {
+  service.rfqmm.Quote quote = 1;
+  // indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)
+  bool dst_native = 2;
+  // unix epoch seconds
+  int64 last_updated = 3; 
+  rfq.OrderStatus status = 4;
+  string mm_id = 5;
+  string mm_addr = 6;
+  // the tx in which the user deposits the fund on the src chain
+  string src_deposit_tx_hash = 7;
+  // the tx in which the fund is transferred from MMs address to the user on the dst chain
+  string dst_transfer_tx_hash = 8;
+  // the tx in which the fund is released to the MM on the src chain
+  string src_release_tx_hash = 9;
+  // the tx in which the refund is initiated on the dst chain
+  string dst_refund_init_tx_hash = 10;
+  // the tx in which the fund is refunded to the user on the src chain
+  string src_refund_tx_hash = 11;
+}
+
+message MarketMaker {
+  string id = 1;
+  string name = 3;
+}
