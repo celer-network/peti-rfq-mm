@@ -1,4 +1,4 @@
-# RFQ MM docs
+# RFQ Market Maker (MM) docs
 
 ## Overview 
 
@@ -35,8 +35,8 @@ This document describes the functions and operations of the market maker (MM), w
 
 A successfull RFQ transaction consists two main processes:
 
-1. User and MM reach an agreement through RFQ Server
-2. User and MM swap tokens through RFQ contract
+1. User and MM reach a quote agreement through off-chain communications via an RFQ Server.
+2. User and MM execute the quote by swapping tokens through the RFQ contracts and Celer IM.
 
 ### Reach an agreement
 
