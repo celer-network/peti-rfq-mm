@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/celer-network/goutils/log"
 	"github.com/celer-network/rfq-mm/sdk/common"
 	"github.com/celer-network/rfq-mm/sdk/eth"
 	"github.com/celer-network/rfq-mm/sdk/service/rfqmm/proto"
@@ -138,6 +139,8 @@ func (ac *DefaultAmtCalculator) SetMaxFeeUsdValue(maxFeeUsdValue uint64) {
 }
 
 func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn *big.Int) (amountOut, releaseAmt, fee *big.Int, err error) {
+	chainIn := tokenIn.ChainId
+	chainOut := tokenOut.ChainId
 	tokenInPrice, err := ac.PriceProvider.GetPrice(tokenIn)
 	if err != nil {
 		return
@@ -146,7 +149,7 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 	if err != nil {
 		return
 	}
-	nativeIn, err := ac.Querier.GetNativeToken(tokenIn.ChainId)
+	nativeIn, err := ac.Querier.GetNativeToken(chainIn)
 	if err != nil {
 		return
 	}
@@ -154,7 +157,7 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 	if err != nil {
 		return
 	}
-	nativeOut, err := ac.Querier.GetNativeToken(tokenOut.ChainId)
+	nativeOut, err := ac.Querier.GetNativeToken(chainOut)
 	if err != nil {
 		return
 	}
@@ -162,21 +165,29 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 	if err != nil {
 		return
 	}
-	rfqFeeAmt, err := ac.Querier.GetRfqFee(tokenIn.ChainId, tokenOut.ChainId, amountIn)
+	rfqFeeAmt, err := ac.Querier.GetRfqFee(chainIn, chainOut, amountIn)
 	if err != nil {
 		return
 	}
+	srcGasPrice, err := ac.Querier.GetGasPrice(chainIn)
+	if err != nil {
+		log.Warnf("Fail to get gas price on chain %d, err:%v", chainIn, err)
+		srcGasPrice = big.NewInt(int64(ac.GasPrice[chainIn]))
+	}
+	dstGasPrice, err := ac.Querier.GetGasPrice(chainOut)
+	if err != nil {
+		log.Warnf("Fail to get gas price on chain %d, err:%v", chainOut, err)
+		dstGasPrice = big.NewInt(int64(ac.GasPrice[chainOut]))
+	}
 	releaseAmt = new(big.Int).Sub(amountIn, rfqFeeAmt)
-	chainIn := tokenIn.ChainId
-	chainOut := tokenOut.ChainId
 
 	msgFeeAmt, _ := ac.Querier.GetMsgFee(chainOut)
 	dstGasCost := big.NewInt(int64(ac.DstGasCost))
 	srcGasCost := big.NewInt(int64(ac.SrcGasCost))
 	mmFeeAmt := ac.calMmFee(tokenIn, tokenOut, amountIn)
 	msgFeeInIn := convertAmount(msgFeeAmt, nativeOutPrice, tokenInPrice, tokenIn.Decimals-nativeOut.Decimals)
-	dstGasCostInIn := convertAmount(new(big.Int).Mul(dstGasCost, big.NewInt(int64(ac.GasPrice[chainOut]))), nativeOutPrice, tokenInPrice, tokenIn.Decimals-nativeOut.Decimals)
-	srcGasCostInIn := convertAmount(new(big.Int).Mul(srcGasCost, big.NewInt(int64(ac.GasPrice[chainIn]))), nativeInPrice, tokenInPrice, tokenIn.Decimals-nativeIn.Decimals)
+	dstGasCostInIn := convertAmount(new(big.Int).Mul(dstGasCost, dstGasPrice), nativeOutPrice, tokenInPrice, tokenIn.Decimals-nativeOut.Decimals)
+	srcGasCostInIn := convertAmount(new(big.Int).Mul(srcGasCost, srcGasPrice), nativeInPrice, tokenInPrice, tokenIn.Decimals-nativeIn.Decimals)
 	if tokenIn.ChainId != tokenOut.ChainId {
 		fee = new(big.Int).Add(mmFeeAmt, msgFeeInIn)
 		fee.Add(fee, dstGasCostInIn)

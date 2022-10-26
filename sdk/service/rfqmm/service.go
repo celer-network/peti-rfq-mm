@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
+	ethutils "github.com/celer-network/goutils/eth"
+	"github.com/celer-network/goutils/log"
 	"github.com/celer-network/rfq-mm/sdk/bindings/rfq"
 	"github.com/celer-network/rfq-mm/sdk/common"
 	"github.com/celer-network/rfq-mm/sdk/eth"
 	rfqserver "github.com/celer-network/rfq-mm/sdk/service/rfq"
 	rfqproto "github.com/celer-network/rfq-mm/sdk/service/rfq/proto"
 	"github.com/celer-network/rfq-mm/sdk/service/rfqmm/proto"
-	ethutils "github.com/celer-network/goutils/eth"
-	"github.com/celer-network/goutils/log"
 	"google.golang.org/grpc"
 )
 
@@ -54,6 +54,7 @@ type ServerConfig struct {
 type ChainQuerier interface {
 	GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
 	GetMsgFee(chainId uint64) (*big.Int, error)
+	GetGasPrice(chainId uint64) (*big.Int, error)
 	GetNativeToken(chainId uint64) (*common.Token, error)
 	GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error)
 	GetNativeBalance(chainId uint64, accoun eth.Addr) (*big.Int, error)

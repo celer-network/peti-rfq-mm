@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/celer-network/goutils/log"
 	"github.com/celer-network/rfq-mm/sdk/eth"
 	"github.com/celer-network/rfq-mm/sdk/service/rfqmm/proto"
-	"github.com/celer-network/goutils/log"
 	"google.golang.org/grpc"
 )
 

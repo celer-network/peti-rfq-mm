@@ -310,12 +310,12 @@ percglobal = 1000
 
 [[fee.gasprices]]
 chainid = 5
-# how much wei you wanna charge for each gas consumed 
+# how much wei you wanna charge for each gas consumed when failed to call eth_gasPrice 
 price = 5000000000
 
 [[fee.gasprices]]
 chainid = 97
-# how much wei you wanna charge for each gas consumed 
+# how much wei you wanna charge for each gas consumed when failed to call eth_gasPrice
 price = 7000000000
 
 [[fee.chainoverrides]]
@@ -337,7 +337,7 @@ Except of `fee.chainoverrides` and `fee.tokenoverrides`, all the other fields ar
 MM needs to separately send one tx on dst and src chain, in order to complete a swap order. That's  why we need
 to configure `fee.dstgascost`, `fee.srcgascost` and `fee.gasprice`. The actual charged fee value to cover gas consumption
 on two chains will be
-`fee.dstgascost * <fee.gasprice on dst> * <current-native-token-price-in-wei> + fee.srcgascost * <fee.gasprice on src> * <current-native-token-price-in-wei>`. 
+`fee.dstgascost * <current-gasprice-on-dst> * <current-native-token-price-in-wei> + fee.srcgascost * <current-gasprice-on-src> * <current-native-token-price-in-wei>`. 
 At last, the fee value will be converted to token amount which is deducted from the amount of token transferred to User.
 
 4. MM configuration

@@ -6,15 +6,15 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/celer-network/endpoint-proxy/endpointproxy"
+	ethutils "github.com/celer-network/goutils/eth"
+	"github.com/celer-network/goutils/log"
 	"github.com/celer-network/rfq-mm/sdk/bindings/interfaces/ierc20"
 	"github.com/celer-network/rfq-mm/sdk/bindings/interfaces/iweth"
 	"github.com/celer-network/rfq-mm/sdk/bindings/rfq"
 	"github.com/celer-network/rfq-mm/sdk/common"
 	"github.com/celer-network/rfq-mm/sdk/eth"
 	"github.com/celer-network/rfq-mm/sdk/service/rfqmm/proto"
-	"github.com/celer-network/endpoint-proxy/endpointproxy"
-	ethutils "github.com/celer-network/goutils/eth"
-	"github.com/celer-network/goutils/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -120,6 +120,14 @@ func (cm *ChainManager) GetNativeToken(chainId uint64) (*common.Token, error) {
 		return nil, err
 	}
 	return chain.NativeToken, nil
+}
+
+func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error) {
+	chain, err := cm.GetChain(chainId)
+	if err != nil {
+		return nil, err
+	}
+	return chain.GetGasPrice()
 }
 
 func (cm *ChainManager) GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error) {
@@ -267,6 +275,10 @@ func (c Chain) GetERC20Balance(opts *bind.CallOpts, token, account eth.Addr) (*b
 
 func (c Chain) GetNativeBalance(account eth.Addr) (*big.Int, error) {
 	return c.Client.BalanceAt(context.Background(), account, nil)
+}
+
+func (c Chain) GetGasPrice() (*big.Int, error) {
+	return c.Client.SuggestGasPrice(context.Background())
 }
 
 func (c Chain) VerifyRfqEvent(tx, evID eth.Hash, evName string) (bool, error) {
