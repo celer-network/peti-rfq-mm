@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	maxPendingTxNum    = 20 // max number of tx in pending status (already in txpool)
-	maxSubmittingTxNum = 10 // max number of tx being submitted (not in txpool yet)
-	updateMsgPeriod    = 24 * time.Hour
+	maxPendingTxNum     = 20 // max number of tx in pending status (already in txpool)
+	maxSubmittingTxNum  = 10 // max number of tx being submitted (not in txpool yet)
+	updateMsgPeriod     = 24 * time.Hour
+	gasPriceValidPeriod = 5 * time.Minute
 )
 
 type RfqMmChainConfig struct {
@@ -127,7 +128,7 @@ func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error) {
 	if err != nil {
 		return nil, err
 	}
-	return chain.GetGasPrice()
+	return chain.GetGasPrice(), nil
 }
 
 func (cm *ChainManager) GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error) {
@@ -172,14 +173,15 @@ func (cm *ChainManager) VerifyRfqEvent(chainId uint64, tx eth.Hash, evName strin
 
 type Chain struct {
 	*ethclient.Client
-	ChainId     uint64
-	BlockDelay  uint64
-	NativeToken *common.Token
-	RfqContract *rfq.Rfq
-	RfqAddress  eth.Addr
-	IWETH       *iweth.Iweth
-	MsgFee      *big.Int
-	TxOptions   []ethutils.TxOption
+	ChainId       uint64
+	BlockDelay    uint64
+	NativeToken   *common.Token
+	RfqContract   *rfq.Rfq
+	RfqAddress    eth.Addr
+	IWETH         *iweth.Iweth
+	MsgFee        *big.Int
+	TxOptions     []ethutils.TxOption
+	GasPriceCache *dataCache
 }
 
 func NewChain(config *RfqMmChainConfig) *Chain {
@@ -231,16 +233,25 @@ func NewChain(config *RfqMmChainConfig) *Chain {
 		ethutils.WithMaxPendingTxNum(maxPendingTxNum),
 		ethutils.WithMaxSubmittingTxNum(maxSubmittingTxNum),
 	}
+	gasPriceCache := newDataCache(big.NewInt(0).Bytes(), gasPriceValidPeriod, func() ([]byte, error) {
+		price, err := ec.SuggestGasPrice(context.Background())
+		if err != nil {
+			return big.NewInt(0).Bytes(), err
+		} else {
+			return price.Bytes(), nil
+		}
+	})
 	chain := &Chain{
-		Client:      ec,
-		ChainId:     config.ChainId,
-		BlockDelay:  config.BlkDelay,
-		NativeToken: config.Native,
-		RfqContract: rfqContract,
-		RfqAddress:  eth.Hex2Addr(config.Rfq),
-		IWETH:       iwethContract,
-		MsgFee:      big.NewInt(0),
-		TxOptions:   txOptions,
+		Client:        ec,
+		ChainId:       config.ChainId,
+		BlockDelay:    config.BlkDelay,
+		NativeToken:   config.Native,
+		RfqContract:   rfqContract,
+		RfqAddress:    eth.Hex2Addr(config.Rfq),
+		IWETH:         iwethContract,
+		MsgFee:        big.NewInt(0),
+		TxOptions:     txOptions,
+		GasPriceCache: gasPriceCache,
 	}
 	return chain
 }
@@ -277,8 +288,8 @@ func (c Chain) GetNativeBalance(account eth.Addr) (*big.Int, error) {
 	return c.Client.BalanceAt(context.Background(), account, nil)
 }
 
-func (c Chain) GetGasPrice() (*big.Int, error) {
-	return c.Client.SuggestGasPrice(context.Background())
+func (c Chain) GetGasPrice() *big.Int {
+	return new(big.Int).SetBytes(c.GasPriceCache.get())
 }
 
 func (c Chain) VerifyRfqEvent(tx, evID eth.Hash, evName string) (bool, error) {
@@ -306,4 +317,34 @@ func (c Chain) VerifyRfqEvent(tx, evID eth.Hash, evName string) (bool, error) {
 		return false, proto.NewErr(proto.ErrCode_ERROR_CHAIN_MANAGER, fmt.Sprintf("Event block %d too soon, should only up to block %d", expectedLog.BlockNumber, blk-c.BlockDelay))
 	}
 	return true, nil
+}
+
+// a very simple cache, has only one method, which is "fresh data if necessary and return it".
+type dataCache struct {
+	data        []byte
+	updateTime  time.Time
+	validPeriod time.Duration
+	updateFunc  func() ([]byte, error)
+}
+
+func newDataCache(initData []byte, validPeriod time.Duration, updateFunc func() ([]byte, error)) *dataCache {
+	return &dataCache{
+		data:        initData,
+		updateTime:  time.Now(),
+		validPeriod: validPeriod,
+		updateFunc:  updateFunc,
+	}
+}
+
+func (c *dataCache) get() []byte {
+	if time.Now().Sub(c.updateTime) > c.validPeriod {
+		data, err := c.updateFunc()
+		if err != nil {
+			log.Warnf("failed to update cache, err:%v", err)
+		} else {
+			c.data = data
+			c.updateTime = time.Now()
+		}
+	}
+	return c.data
 }
