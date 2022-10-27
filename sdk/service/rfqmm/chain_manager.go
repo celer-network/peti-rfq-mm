@@ -330,7 +330,7 @@ type dataCache struct {
 func newDataCache(initData []byte, validPeriod time.Duration, updateFunc func() ([]byte, error)) *dataCache {
 	return &dataCache{
 		data:        initData,
-		updateTime:  time.Now(),
+		updateTime:  time.Unix(0, 0),
 		validPeriod: validPeriod,
 		updateFunc:  updateFunc,
 	}

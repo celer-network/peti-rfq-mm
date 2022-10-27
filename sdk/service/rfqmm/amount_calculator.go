@@ -170,12 +170,12 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 		return
 	}
 	srcGasPrice, err := ac.Querier.GetGasPrice(chainIn)
-	if err != nil {
+	if err != nil || srcGasPrice.Sign() == 0 {
 		log.Warnf("Fail to get gas price on chain %d, err:%v", chainIn, err)
 		srcGasPrice = big.NewInt(int64(ac.GasPrice[chainIn]))
 	}
 	dstGasPrice, err := ac.Querier.GetGasPrice(chainOut)
-	if err != nil {
+	if err != nil || dstGasPrice.Sign() == 0 {
 		log.Warnf("Fail to get gas price on chain %d, err:%v", chainOut, err)
 		dstGasPrice = big.NewInt(int64(ac.GasPrice[chainOut]))
 	}
