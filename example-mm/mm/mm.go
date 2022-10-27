@@ -4,9 +4,9 @@ import (
 	"crypto/tls"
 
 	"github.com/celer-network/goutils/log"
-	rfqserver "github.com/celer-network/rfq-mm/sdk/service/rfq"
-	rfqproto "github.com/celer-network/rfq-mm/sdk/service/rfq/proto"
-	"github.com/celer-network/rfq-mm/sdk/service/rfqmm"
+	rfqserver "github.com/celer-network/peti-rfq-mm/sdk/service/rfq"
+	rfqproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
+	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

@@ -1,4 +1,4 @@
-# RFQ-MM
+# peti-rfq-mm
 RFQ Market Maker
 
 [MM Doc](./doc/mm.md)

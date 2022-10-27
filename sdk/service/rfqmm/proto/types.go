@@ -3,8 +3,8 @@ package proto
 import (
 	"math/big"
 
-	"github.com/celer-network/rfq-mm/sdk/bindings/rfq"
-	"github.com/celer-network/rfq-mm/sdk/eth"
+	"github.com/celer-network/peti-rfq-mm/sdk/bindings/rfq"
+	"github.com/celer-network/peti-rfq-mm/sdk/eth"
 	solsha3 "github.com/miguelmota/go-solidity-sha3"
 )
 

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/celer-network/goutils/log"
-	"github.com/celer-network/rfq-mm/example-mm/mm"
+	"github.com/celer-network/peti-rfq-mm/example-mm/mm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -46,9 +46,9 @@ func NewRootCmd() *cobra.Command {
 			return nil
 		},
 	}
-	rootCmd.PersistentFlags().String(FlagHome, os.ExpandEnv("$HOME/.rfq-mm"), "home path")
+	rootCmd.PersistentFlags().String(FlagHome, os.ExpandEnv("$HOME/.peti-rfq-mm"), "home path")
 	rootCmd.PersistentFlags().String(FlagLoglevel, "info", "log level")
-	rootCmd.PersistentFlags().String(FlagLogDir, "$HOME/.rfq-mm/app", "log level")
+	rootCmd.PersistentFlags().String(FlagLogDir, "$HOME/.peti-rfq-mm/app", "log level")
 	rootCmd.AddCommand(
 		startCmd(),
 	)

@@ -5,8 +5,8 @@
 
 ## rfq
 ```
-import "github.com/celer-network/rfq-mm/sdk/service/rfq"
-import rfqproto "github.com/celer-network/rfq-mm/sdk/service/rfq/proto"
+import "github.com/celer-network/peti-rfq-mm/sdk/service/rfq"
+import rfqproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
 ```
 Package rfq provides the client of RFQ Server.
 
@@ -198,8 +198,8 @@ message UpdateConfigsResponse {
 
 ## rfqmm
 ```
-import "github.com/celer-network/rfq-mm/sdk/service/rfqmm"
-import rfqmmproto "github.com/celer-network/rfq-mm/sdk/service/rfqmm/proto"
+import "github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm"
+import rfqmmproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
 ```
 Package rfqmm provides the client and MM application(server) and some default implementation of {ChainQuerier, LiquidityProvider,
 AmountCalculator, RequestSigner}. Those four components are required to create a server of MM application.
@@ -240,6 +240,7 @@ See [NewServer](#func-newserver) for more information on creating server.
   - [func (cm *ChainManager) GetChain(chainId uint64) (*Chain, error)](#func-chainmanager-getchain)
   - [func (cm *ChainManager) GetRfqFee(srcChainId uint64, dstChainId uint64, amount *big.Int) (*big.Int, error)](#func-chainmanager-getrfqfee)
   - [func (cm *ChainManager) GetMsgFee(chainId uint64) (*big.Int, error)](#func-chainmanager-getmsgfee)
+  - [func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error)](#func-chainmanager-getgasprice)
   - [func (cm *ChainManager) GetNativeToken(chainId uint64) (*common.Token, error)](#func-chainmanager-getnativetoken)
   - [func (cm *ChainManager) GetERC20Balance(chainId uint64, token eth.Addr, account eth.Addr) (*big.Int, error)](#func-chainmanager-geterc20balance)
   - [func (cm *ChainManager) GetNativeBalance(chainId uint64, account eth.Addr) (*big.Int, error)](#func-chainmanager-getnativebalance)
@@ -519,6 +520,7 @@ Basic flow:
 type ChainQuerier interface {
 	GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
 	GetMsgFee(chainId uint64) (*big.Int, error)
+	GetGasPrice(chainId uint64) (*big.Int, error)
 	GetNativeToken(chainId uint64) (*common.Token, error)
 	GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error)
 	GetNativeBalance(chainId uint64, accoun eth.Addr) (*big.Int, error)
@@ -616,6 +618,21 @@ Example:
 ```go
 msgFee, err := cm.GetMsgFee(5)
 if err != nil {
+	// handle err
+}
+```
+
+#### func (*ChainManager) GetGasPrice
+```go
+[func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error)
+```
+GetGasPrice Method returns the suggested gas price on specific chain.
+
+Example:
+```go
+// get chain of Goerli
+gasPrice, err := cm.GetGasPrice(5)
+if err != nil || gasPrice.Sign() == 0 {
 	// handle err
 }
 ```

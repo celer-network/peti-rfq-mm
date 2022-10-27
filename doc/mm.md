@@ -187,12 +187,12 @@ For customized MM application, run it as you preferred.
 
 ### Installation
 
-1. Download `rfq-mm`
+1. Download `peti-rfq-mm`
 ```
-git clone https://github.com/celer-network/rfq-mm.git
-cd rfq-mm
+git clone https://github.com/celer-network/peti-rfq-mm.git
+cd peti-rfq-mm
 ```
-2. Build `rfq-mm`
+2. Build `peti-rfq-mm`
 ```
 make install
 ```
@@ -200,16 +200,16 @@ make install
 ### Configuration
 Make a new folder to store your configuration file and ETH keystore file.
 ```
-mkdir .rfq-mm
-cd .rfq-mm
+mkdir .peti-rfq-mm
+cd .peti-rfq-mm
 mkdir config eth-ks
 touch config/chain.toml config/lp.toml config/fee.toml config/mm.toml
-// move all used address's keystore file into .rfq-mm/eth-ks/
+// move all used address's keystore file into .peti-rfq-mm/eth-ks/
 mv <path-to-your-eth-keystore-file> eth-ks/<give-a-name>.json
 ```
-The `.rfq-mm` folder's structure will looks like:
+The `.peti-rfq-mm` folder's structure will looks like:
 ```
-.rfq-mm/
+.peti-rfq-mm/
   - config/
       - chain.toml
       - lp.toml
@@ -282,7 +282,7 @@ decimals = 18
 freezetime = 200
 ```
 You can use different account for each chain or just use one account for all chains. `keystore` should set to path of your
-keystore file relative to `.rfq-mm` floder.
+keystore file relative to `.peti-rfq-mm` floder.
 
 For each token, `address`, `symbol`, `decimals` and `freezetime` are required, while `amount` and `approve` are optional.
 
@@ -380,17 +380,17 @@ identified by `requestsigner` of which value matches with `lp.chainid`.
 
 ### Running
 
-Create a rfq-mm system service
+Create a peti-rfq-mm system service
 ```
-touch /etc/systemd/system/rfq-mm.service
+touch /etc/systemd/system/peti-rfq-mm.service
 # create the log directory for executor
-mkdir -p /var/log/rfq-mm
+mkdir -p /var/log/peti-rfq-mm
 ```
 
 >IMPORTANT: check if the user, user group and paths defined in your systemd file are correct.
 
 ```
-# rfq-mm.service
+# peti-rfq-mm.service
 
 [Unit]
 Description=Default MM application
@@ -398,10 +398,10 @@ After=network-online.target
 
 [Service]
 Environment=HOME=/home/ubuntu
-ExecStart=/home/ubuntu/go/bin/rfq-mm start \
-  --home /home/ubuntu/.rfq-mm/ \
-  --logdir /var/log/rfq-mm/app --loglevel debug
-StandardError=append:/var/log/rfq-mm/error.log
+ExecStart=/home/ubuntu/go/bin/peti-rfq-mm start \
+  --home /home/ubuntu/.peti-rfq-mm/ \
+  --logdir /var/log/peti-rfq-mm/app --loglevel debug
+StandardError=append:/var/log/peti-rfq-mm/error.log
 Restart=always
 RestartSec=10
 User=ubuntu
@@ -413,10 +413,10 @@ WantedBy=multi-user.target
 ```
 Enable and start executor service
 ```
-sudo systemctl enable rfq-mm
-sudo systemctl start rfq-mm
+sudo systemctl enable peti-rfq-mm
+sudo systemctl start peti-rfq-mm
 // Check if logs look ok
-tail -f -n30 /var/log/rfq-mm/app/<log-file-with-start-time>.log
+tail -f -n30 /var/log/peti-rfq-mm/app/<log-file-with-start-time>.log
 ```
 
 ## Customize your own MM application

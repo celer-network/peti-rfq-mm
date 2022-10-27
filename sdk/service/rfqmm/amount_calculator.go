@@ -6,9 +6,9 @@ import (
 	"math/big"
 
 	"github.com/celer-network/goutils/log"
-	"github.com/celer-network/rfq-mm/sdk/common"
-	"github.com/celer-network/rfq-mm/sdk/eth"
-	"github.com/celer-network/rfq-mm/sdk/service/rfqmm/proto"
+	"github.com/celer-network/peti-rfq-mm/sdk/common"
+	"github.com/celer-network/peti-rfq-mm/sdk/eth"
+	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
 )
 
 var _ AmountCalculator = &DefaultAmtCalculator{}
