@@ -5,7 +5,7 @@ import "common/token.proto";
 import "common/error.proto";
 import "google/api/annotations.proto";
 
-option go_package = "github.com/celer-network/rfq-mm/sdk/service/rfqmm/proto";
+option go_package = "github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto";
 
 service api {
   rpc Price(PriceRequest) returns (PriceResponse) {

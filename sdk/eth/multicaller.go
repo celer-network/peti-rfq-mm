@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/celer-network/rfq-mm/sdk/bindings/multicall"
+	"github.com/celer-network/peti-rfq-mm/sdk/bindings/multicall"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"

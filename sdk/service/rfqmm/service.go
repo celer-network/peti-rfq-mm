@@ -10,12 +10,12 @@ import (
 
 	ethutils "github.com/celer-network/goutils/eth"
 	"github.com/celer-network/goutils/log"
-	"github.com/celer-network/rfq-mm/sdk/bindings/rfq"
-	"github.com/celer-network/rfq-mm/sdk/common"
-	"github.com/celer-network/rfq-mm/sdk/eth"
-	rfqserver "github.com/celer-network/rfq-mm/sdk/service/rfq"
-	rfqproto "github.com/celer-network/rfq-mm/sdk/service/rfq/proto"
-	"github.com/celer-network/rfq-mm/sdk/service/rfqmm/proto"
+	"github.com/celer-network/peti-rfq-mm/sdk/bindings/rfq"
+	"github.com/celer-network/peti-rfq-mm/sdk/common"
+	"github.com/celer-network/peti-rfq-mm/sdk/eth"
+	rfqserver "github.com/celer-network/peti-rfq-mm/sdk/service/rfq"
+	rfqproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
+	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
 	"google.golang.org/grpc"
 )
 

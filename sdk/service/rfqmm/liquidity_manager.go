@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celer-network/rfq-mm/sdk/common"
-	"github.com/celer-network/rfq-mm/sdk/eth"
-	"github.com/celer-network/rfq-mm/sdk/service/rfqmm/proto"
 	ethutils "github.com/celer-network/goutils/eth"
 	"github.com/celer-network/goutils/log"
+	"github.com/celer-network/peti-rfq-mm/sdk/common"
+	"github.com/celer-network/peti-rfq-mm/sdk/eth"
+	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
 )

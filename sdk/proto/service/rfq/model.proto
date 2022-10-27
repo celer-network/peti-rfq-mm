@@ -1,7 +1,7 @@
 syntax = "proto3";
 package service.rfq;
 
-option go_package = "github.com/celer-network/rfq-mm/sdk/service/rfq/proto";
+option go_package = "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto";
 
 import "service/rfqmm/api.proto";
 

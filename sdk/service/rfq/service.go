@@ -3,7 +3,7 @@ package rfq
 import (
 	"context"
 
-	"github.com/celer-network/rfq-mm/sdk/service/rfq/proto"
+	"github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
 	"google.golang.org/grpc"
 )
 
