@@ -201,7 +201,7 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 }
 
 func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn, tokenOut *common.Token, amountOut *big.Int) (*big.Int, *big.Int, *big.Int, error) {
-	return nil, nil, nil, nil
+	return nil, nil, nil, fmt.Errorf("not supported now")
 }
 
 func (ac *DefaultAmtCalculator) calMmFee(tokenIn, tokenOut *common.Token, amountIn *big.Int) *big.Int {

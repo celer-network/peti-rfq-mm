@@ -208,7 +208,6 @@ func (s *Server) processOrder(pendingOrder *rfqproto.PendingOrder) {
 		log.Errorf("Invalid quote, quoteHash %x", quoteHash)
 		return
 	}
-	calldata := pendingOrder.ExecMsgCallData
 	switch pendingOrder.Status {
 	case rfqproto.OrderStatus_STATUS_SRC_DEPOSITED:
 		// 1. check dst deadline
@@ -259,7 +258,7 @@ func (s *Server) processOrder(pendingOrder *rfqproto.PendingOrder) {
 		s.updateOrder(quoteHash, rfqproto.OrderStatus_STATUS_MM_DST_EXECUTED, eth.Bytes2Hex(txHash.Bytes()))
 	case rfqproto.OrderStatus_STATUS_DST_TRANSFERRED:
 		// 1. send src release
-		txHash, err := s.LiquidityProvider.SrcRelease(quote.ToQuoteOnChain(), calldata)
+		txHash, err := s.LiquidityProvider.SrcRelease(quote.ToQuoteOnChain(), pendingOrder.ExecMsgCallData)
 		if err != nil {
 			log.Errorf("SrcRelease err:%s, quoteHash %x", err, quoteHash)
 			return
