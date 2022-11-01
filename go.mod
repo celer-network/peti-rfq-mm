@@ -14,7 +14,7 @@ require (
 	github.com/aws/aws-sdk-go v1.41.15 // indirect
 	github.com/celer-network/endpoint-proxy v0.2.11
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/ethereum/go-ethereum v1.10.21
+	github.com/ethereum/go-ethereum v1.10.25
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.2
