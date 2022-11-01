@@ -1,7 +1,6 @@
 package rfqmm
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -24,8 +23,8 @@ const (
 	sameChainTransfer    = "SameChainTransfer"
 	NativeTokenReference = "ffffffffffffffffffffffffffffffffffffffff"
 	TPPolicyAll          = "All"
-	TPPolicyPrefixAny2Of = "Any2Of"
-	TPPolicyPrefixOneOf  = "OneOf"
+	TPPolicyPrefixAny2Of = "Any2Of="
+	TPPolicyPrefixOneOf  = "OneOf="
 )
 
 var _ LiquidityProvider = &DefaultLiquidityProvider{}
@@ -92,31 +91,21 @@ func (d DefaultLiquidityProvider) GetTokens() []*common.Token {
 	return res
 }
 
-// policy str is one of {"All", "Any2Of[<chainId>-<symbol>, <chainId>-<symbol>...]", "OneOf[<chainId>-<symbol>, <chainId>-<symbol>]"}
+// policy str is one of {"All", "Any2Of=<chainId>-<symbol>,<chainId>-<symbol>...", "OneOf=<chainId>-<symbol>,<chainId>-<symbol>"}
 func (d *DefaultLiquidityProvider) SetupTokenPairs(policies []string) {
 	for _, policy := range policies {
 		if policy == TPPolicyAll {
 			d.setupTokenPairsAll()
 			return
 		} else if strings.HasPrefix(policy, TPPolicyPrefixAny2Of) {
-			list := new([]string)
-			err := json.Unmarshal([]byte(strings.TrimPrefix(policy, TPPolicyPrefixAny2Of)), list)
-			if err != nil {
-				continue
-			}
-			d.setupTokenPairsAny2Of(*list)
+			arg := strings.TrimSpace(strings.TrimPrefix(policy, TPPolicyPrefixAny2Of))
+			d.setupTokenPairsAny2Of(strings.Split(arg, ","))
 		} else if strings.HasPrefix(policy, TPPolicyPrefixOneOf) {
-			list := new([]string)
-			err := json.Unmarshal([]byte(strings.TrimPrefix(policy, TPPolicyPrefixOneOf)), list)
-			if err != nil {
-				continue
-			}
-			d.setupTokenPairsOneOf(*list)
+			arg := strings.TrimSpace(strings.TrimPrefix(policy, TPPolicyPrefixOneOf))
+			d.setupTokenPairsOneOf(strings.Split(arg, ","))
 		}
 		continue
 	}
-	// todo print all tokenpairs
-
 }
 
 func (d DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool {
@@ -513,8 +502,8 @@ func (d *DefaultLiquidityProvider) setupTokenPairsAll() {
 	}
 	log.Debugf("setup token pairs with policy All")
 	logStr := "Token pairs:"
-	for i := 0; i < len(tokens)-2; i++ {
-		for j := i + 1; j < len(tokens)-1; j++ {
+	for i := 0; i < len(tokens)-1; i++ {
+		for j := i + 1; j < len(tokens); j++ {
 			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[i].ChainId, tokens[i].Symbol, tokens[j].ChainId, tokens[j].Symbol)
 			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[j].ChainId, tokens[j].Symbol, tokens[i].ChainId, tokens[i].Symbol)
 			d.tokenPair[genTokenPairKey(tokens[i], tokens[j])] = true
@@ -534,8 +523,8 @@ func (d *DefaultLiquidityProvider) setupTokenPairsAny2Of(list []string) {
 	}
 	log.Debugf("setup token pairs with policy Any2Of")
 	logStr := "Token pairs:"
-	for i := 0; i < len(tokens)-2; i++ {
-		for j := i + 1; j < len(tokens)-1; j++ {
+	for i := 0; i < len(tokens)-1; i++ {
+		for j := i + 1; j < len(tokens); j++ {
 			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[i].ChainId, tokens[i].Symbol, tokens[j].ChainId, tokens[j].Symbol)
 			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[j].ChainId, tokens[j].Symbol, tokens[i].ChainId, tokens[i].Symbol)
 			d.tokenPair[genTokenPairKey(tokens[i], tokens[j])] = true
