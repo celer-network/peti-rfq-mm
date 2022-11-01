@@ -241,7 +241,7 @@ See [NewServer](#func-newserver) for more information on creating server.
   - [func (cm *ChainManager) GetRfqFee(srcChainId uint64, dstChainId uint64, amount *big.Int) (*big.Int, error)](#func-chainmanager-getrfqfee)
   - [func (cm *ChainManager) GetMsgFee(chainId uint64) (*big.Int, error)](#func-chainmanager-getmsgfee)
   - [func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error)](#func-chainmanager-getgasprice)
-  - [func (cm *ChainManager) GetNativeToken(chainId uint64) (*common.Token, error)](#func-chainmanager-getnativetoken)
+  - [func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error)](#func-chainmanager-getnativetoken)
   - [func (cm *ChainManager) GetERC20Balance(chainId uint64, token eth.Addr, account eth.Addr) (*big.Int, error)](#func-chainmanager-geterc20balance)
   - [func (cm *ChainManager) GetNativeBalance(chainId uint64, account eth.Addr) (*big.Int, error)](#func-chainmanager-getnativebalance)
   - [func (cm *ChainManager) GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)](#func-chainmanager-getquotestatus)
@@ -521,7 +521,7 @@ type ChainQuerier interface {
 	GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
 	GetMsgFee(chainId uint64) (*big.Int, error)
 	GetGasPrice(chainId uint64) (*big.Int, error)
-	GetNativeToken(chainId uint64) (*common.Token, error)
+	GetNativeWrap(chainId uint64) (*common.Token, error)
 	GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error)
 	GetNativeBalance(chainId uint64, accoun eth.Addr) (*big.Int, error)
 	GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)
@@ -637,15 +637,15 @@ if err != nil || gasPrice.Sign() == 0 {
 }
 ```
 
-#### func (*ChainManager) GetNativeToken
+#### func (*ChainManager) GetNativeWrap
 ```go
-func (cm *ChainManager) GetNativeToken(chainId uint64) (*common.Token, error)
+func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error)
 ```
-GetNativeToken Method get configured native token struct of specific chain.
+GetNativeWrap Method get configured native token struct of specific chain.
 
 Example:
 ```go
-native, err := cm.GetNativeToken(5)
+native, err := cm.GetNativeWrap(5)
 if err != nil {
 	// handle err
 }

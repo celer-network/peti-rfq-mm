@@ -13,17 +13,14 @@ import (
 )
 
 const (
-	LPConfig             = "lp"
-	ChainConfig          = "multichain"
-	FeeConfig            = "fee"
-	PriceProviderUrl     = "priceprovider.url"
-	RfqServerUrl         = "rfqserver.url"
-	RfqServerApikey      = "rfqserver.apikey"
-	RequestSigner        = "mm.requestsigner"
-	PriceValidPeriod     = "mm.pricevalidperiod"
-	SecureTransferPeriod = "mm.securetransferperiod"
-	ReportPeriod         = "mm.reportperiod"
-	ProcessPeriod        = "mm.processperiod"
+	LPConfig         = "lp"
+	ChainConfig      = "multichain"
+	FeeConfig        = "fee"
+	PriceProviderUrl = "priceprovider.url"
+	RfqServerUrl     = "rfqserver.url"
+	RfqServerApikey  = "rfqserver.apikey"
+	RequestSigner    = "requestsigner.chainid"
+	MMConfig         = "mm"
 )
 
 type ExampleMM struct {
@@ -77,15 +74,11 @@ func NewExampleMM() *ExampleMM {
 	client := rfqserver.NewClient(rfqServerUrl, rfqServerApiKey, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
 
 	// new Server
-	processPeriod := viper.GetInt64(ProcessPeriod)
-	reportPeriod := viper.GetInt64(ReportPeriod)
-	priceValidPeriod := viper.GetInt64(PriceValidPeriod)
-	secureTransferPeriod := viper.GetInt64(SecureTransferPeriod)
-	serverConfig := &rfqmm.ServerConfig{
-		ReportRetryPeriod: reportPeriod,
-		ProcessPeriod:     processPeriod,
-		PriceValidPeriod:  priceValidPeriod,
-		DstTransferPeriod: secureTransferPeriod,
+	serverConfig := new(rfqmm.ServerConfig)
+	err = viper.UnmarshalKey(MMConfig, serverConfig)
+	if err != nil {
+		log.Fatalf("failed to load mm server configs:%v", err)
+		return nil
 	}
 	server := rfqmm.NewServer(serverConfig, client, cm, lp, ac, requestSigner)
 

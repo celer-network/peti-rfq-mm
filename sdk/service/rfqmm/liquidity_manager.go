@@ -56,12 +56,28 @@ func (d *LiqManager) GetChains() []uint64 {
 	return res
 }
 
-func (d *LiqManager) GetTokens() []*common.Token {
-	res := make([]*common.Token, 0)
+func (d *LiqManager) GetTokens() map[uint64][]*common.Token {
+	res := make(map[uint64][]*common.Token, 0)
 	for _, lp := range d.LPs {
-		res = append(res, lp.getTokens()...)
+		res[lp.chainId] = lp.getTokens()
 	}
 	return res
+}
+
+func (d *LiqManager) GetToken(chainId uint64, addr eth.Addr) *common.Token {
+	lp, err := d.GetLP(chainId)
+	if err != nil {
+		return lp.getToken(eth.Addr2Hex(addr))
+	}
+	return nil
+}
+
+func (d *LiqManager) GetTokenBySymbol(chainId uint64, symbol string) *common.Token {
+	lp, err := d.GetLP(chainId)
+	if err != nil {
+		return lp.getTokenBySymbol(symbol)
+	}
+	return nil
 }
 
 func (d *LiqManager) GetLiquidityProvider(chainId uint64) (eth.Addr, error) {
@@ -186,7 +202,9 @@ type LiqProvider struct {
 	// sorted slice by LiqOpDetail.Until in ascending order
 	liqOps []*LiqOpDetail
 	// to minimize searching cost when doing unfreeze
-	hashToUntil   map[eth.Hash]int64
+	hashToUntil map[eth.Hash]int64
+	// a helping map from token symbol to addr str, which can be directly used as key of liqs
+	symbolMap     map[string]string
 	releaseNative bool
 }
 
@@ -221,6 +239,7 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 		panic(err)
 	}
 	liqs := make(map[string]*Liquidity)
+	symbolMap := make(map[string]string)
 	for _, liq := range config.Liqs {
 		amount, _ := new(big.Int).SetString(liq.Amount, 10)
 		approved, _ := new(big.Int).SetString(liq.Approve, 10)
@@ -234,6 +253,7 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 			freezeTime: liq.FreezeTime,
 		}
 		liqs[eth.FormatAddrHex(liq.Address)] = liquidity
+		symbolMap[liq.Symbol] = eth.FormatAddrHex(liq.Address)
 	}
 	return &LiqProvider{
 		signer:        signer,
@@ -242,6 +262,7 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 		liqs:          liqs,
 		liqOps:        make([]*LiqOpDetail, 0),
 		hashToUntil:   make(map[eth.Hash]int64),
+		symbolMap:     symbolMap,
 		releaseNative: config.ReleaseNative,
 	}
 }
@@ -426,6 +447,20 @@ func (lp *LiqProvider) getTokens() []*common.Token {
 		tokens = append(tokens, liq.token)
 	}
 	return tokens
+}
+
+func (lp *LiqProvider) getToken(token string) *common.Token {
+	if liq, found := lp.liqs[token]; found {
+		return liq.token
+	}
+	return nil
+}
+
+func (lp *LiqProvider) getTokenBySymbol(symbol string) *common.Token {
+	if liq, found := lp.liqs[lp.symbolMap[symbol]]; found {
+		return liq.token
+	}
+	return nil
 }
 
 func (lp *LiqProvider) getFreezeTime(token string) (int64, error) {

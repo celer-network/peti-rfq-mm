@@ -31,6 +31,9 @@ func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (respon
 	if ok, reason := validatePriceRequest(request); !ok {
 		return &proto.PriceResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, reason).ToCommonErr()}, nil
 	}
+	if !s.LiquidityProvider.HasTokenPair(request.SrcToken, request.DstToken) {
+		return &proto.PriceResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "unsupported token pair").ToCommonErr()}, nil
+	}
 	sendAmount := new(big.Int)
 	releaseAmount := new(big.Int)
 	receiveAmount := new(big.Int)

@@ -14,14 +14,18 @@ import (
 var _ AmountCalculator = &DefaultAmtCalculator{}
 
 type DefaultAmtCalculator struct {
+	// fixed cost related fields
 	DstGasCost uint64
 	SrcGasCost uint64
+	GasPrice   map[uint64]uint64
+
+	// personalized fee related fieds
 	// 100% = 1000000
 	FeePercGlobal        uint32
 	PerChainPairOverride map[uint64]map[uint64]uint32
 	PerTokenPairOverride map[string]map[string]uint32
-	GasPrice             map[uint64]uint64
 
+	// helper
 	Querier       ChainQuerier
 	PriceProvider PriceProvider
 }
@@ -149,7 +153,7 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 	if err != nil {
 		return
 	}
-	nativeIn, err := ac.Querier.GetNativeToken(chainIn)
+	nativeIn, err := ac.Querier.GetNativeWrap(chainIn)
 	if err != nil {
 		return
 	}
@@ -157,7 +161,7 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 	if err != nil {
 		return
 	}
-	nativeOut, err := ac.Querier.GetNativeToken(chainOut)
+	nativeOut, err := ac.Querier.GetNativeWrap(chainOut)
 	if err != nil {
 		return
 	}

@@ -86,11 +86,7 @@ func startCmd() *cobra.Command {
 			mm := mm.NewExampleMM()
 			mm.ReportConfigs()
 			mm.DefaultProcessOrder()
-			port := viper.GetInt(Port)
-			if port == 0 {
-				log.Fatalf("mm.port is empty or 0")
-			}
-			mm.Serve(port)
+			mm.Serve()
 		},
 	}
 	return cmd

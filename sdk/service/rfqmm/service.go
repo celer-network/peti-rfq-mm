@@ -19,6 +19,14 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	DefaultReportRetryPeriod int64 = 5
+	DefaultProcessPeriod     int64 = 5
+	DefaultPriceValidPeriod  int64 = 300
+	DefaultDstTransferPeriod int64 = 3000
+	DefaultPortListenOn      int64 = 5555
+)
+
 type Client struct {
 	proto.ApiClient
 	server string
@@ -49,13 +57,43 @@ type ServerConfig struct {
 	PriceValidPeriod int64
 	// minimum dst transfer period, in order to give mm enough time for dst transfer
 	DstTransferPeriod int64
+	// token pair policy list
+	TPPolicyList []string
+	// port num that mm would listen on
+	PortListenOn int64
+}
+
+func (config *ServerConfig) clean() {
+	if config.ReportRetryPeriod == 0 {
+		config.ReportRetryPeriod = DefaultReportRetryPeriod
+		log.Debugf("Got 0 ReportRetryPeriod, use default value(%d) instead.", DefaultReportRetryPeriod)
+	}
+	if config.ProcessPeriod == 0 {
+		config.ProcessPeriod = DefaultProcessPeriod
+		log.Debugf("Got 0 ProcessPeriod, use default value(%d) instead.", DefaultProcessPeriod)
+	}
+	if config.PriceValidPeriod == 0 {
+		config.PriceValidPeriod = DefaultPriceValidPeriod
+		log.Debugf("Got 0 PriceValidPeriod, use default value(%d) instead.", DefaultPriceValidPeriod)
+	}
+	if config.DstTransferPeriod == 0 {
+		config.DstTransferPeriod = DefaultDstTransferPeriod
+		log.Debugf("Got 0 DstTransferPeriod, use default value(%d) instead.", DefaultDstTransferPeriod)
+	}
+	if len(config.TPPolicyList) == 0 {
+		log.Debugf("No token pair policy was given.")
+	}
+	if config.PortListenOn == 0 {
+		config.PortListenOn = DefaultPortListenOn
+		log.Debugf("Got 0 PortListenOn, use default value(%d) instead.", DefaultPortListenOn)
+	}
 }
 
 type ChainQuerier interface {
 	GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
 	GetMsgFee(chainId uint64) (*big.Int, error)
 	GetGasPrice(chainId uint64) (*big.Int, error)
-	GetNativeToken(chainId uint64) (*common.Token, error)
+	GetNativeWrap(chainId uint64) (*common.Token, error)
 	GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error)
 	GetNativeBalance(chainId uint64, accoun eth.Addr) (*big.Int, error)
 	GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)
@@ -67,6 +105,10 @@ type LiquidityProvider interface {
 	IsPaused() bool
 	// GetTokens returns a list of all supported tokens
 	GetTokens() []*common.Token
+	// SetupTokenPairs sets up supported token pairs based on a given policy list.
+	SetupTokenPairs(policies []string)
+	// HasTokenPair check if a given token pair is supported
+	HasTokenPair(srcToken, dstToken *common.Token) bool
 	// GetLiquidityProviderAddr returns the address of liquidity provider on specified chain
 	GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error)
 	// AskForFreezing checks if there is sufficient liquidity for specified token on specified chain and returns freeze time
@@ -105,6 +147,10 @@ func (c *Client) Close() {
 }
 
 func NewServer(config *ServerConfig, client *rfqserver.Client, cm ChainQuerier, lp LiquidityProvider, ac AmountCalculator, rs RequestSigner) *Server {
+	// clean non-set config, except of token pair policy
+	config.clean()
+	// set up token pairs
+	lp.SetupTokenPairs(config.TPPolicyList)
 	return &Server{
 		Ctl:               make(chan bool),
 		RfqClient:         client,
@@ -116,9 +162,9 @@ func NewServer(config *ServerConfig, client *rfqserver.Client, cm ChainQuerier, 
 	}
 }
 
-func (s *Server) Serve(port int, ops ...grpc.ServerOption) {
-	log.Infof("Start mm server, listen on port %d", port)
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+func (s *Server) Serve(ops ...grpc.ServerOption) {
+	log.Infof("Start mm server, listen on port %d", s.Config.PortListenOn)
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", s.Config.PortListenOn))
 	if err != nil {
 		panic(err)
 	}
