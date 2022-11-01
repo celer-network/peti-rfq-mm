@@ -67,17 +67,17 @@ func (d *LiqManager) GetTokens() map[uint64][]*common.Token {
 func (d *LiqManager) GetToken(chainId uint64, addr eth.Addr) *common.Token {
 	lp, err := d.GetLP(chainId)
 	if err != nil {
-		return lp.getToken(eth.Addr2Hex(addr))
+		return nil
 	}
-	return nil
+	return lp.getToken(eth.Addr2Hex(addr))
 }
 
 func (d *LiqManager) GetTokenBySymbol(chainId uint64, symbol string) *common.Token {
 	lp, err := d.GetLP(chainId)
 	if err != nil {
-		return lp.getTokenBySymbol(symbol)
+		return nil
 	}
-	return nil
+	return lp.getTokenBySymbol(symbol)
 }
 
 func (d *LiqManager) GetLiquidityProvider(chainId uint64) (eth.Addr, error) {
