@@ -516,6 +516,7 @@ func (d *DefaultLiquidityProvider) setupTokenPairsAll() {
 	for i := 0; i < len(tokens)-2; i++ {
 		for j := i + 1; j < len(tokens)-1; j++ {
 			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[i].ChainId, tokens[i].Symbol, tokens[j].ChainId, tokens[j].Symbol)
+			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[j].ChainId, tokens[j].Symbol, tokens[i].ChainId, tokens[i].Symbol)
 			d.tokenPair[genTokenPairKey(tokens[i], tokens[j])] = true
 			d.tokenPair[genTokenPairKey(tokens[j], tokens[i])] = true
 		}
@@ -536,6 +537,7 @@ func (d *DefaultLiquidityProvider) setupTokenPairsAny2Of(list []string) {
 	for i := 0; i < len(tokens)-2; i++ {
 		for j := i + 1; j < len(tokens)-1; j++ {
 			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[i].ChainId, tokens[i].Symbol, tokens[j].ChainId, tokens[j].Symbol)
+			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[j].ChainId, tokens[j].Symbol, tokens[i].ChainId, tokens[i].Symbol)
 			d.tokenPair[genTokenPairKey(tokens[i], tokens[j])] = true
 			d.tokenPair[genTokenPairKey(tokens[j], tokens[i])] = true
 		}
