@@ -142,17 +142,16 @@ func (ac *DefaultAmtCalculator) SetMaxFeeUsdValue(maxFeeUsdValue uint64) {
 	//todo
 }
 
-func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn *big.Int) (amountOut, releaseAmt, fee *big.Int, err error) {
+// fixed cost is composed of 1. src gas cost(only cross chain swap) 2. dst gas cost 3. dst msg fee(only cross chain swap)
+func (ac *DefaultAmtCalculator) calFixedCost(tokenIn, tokenOut *common.Token) (fixedCost *big.Int, err error) {
 	chainIn := tokenIn.ChainId
 	chainOut := tokenOut.ChainId
 	tokenInPrice, err := ac.PriceProvider.GetPrice(tokenIn)
 	if err != nil {
 		return
 	}
-	tokenOutPrice, err := ac.PriceProvider.GetPrice(tokenOut)
-	if err != nil {
-		return
-	}
+
+	// 1 src gas cost
 	nativeIn, err := ac.Querier.GetNativeWrap(chainIn)
 	if err != nil {
 		return
@@ -161,6 +160,16 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 	if err != nil {
 		return
 	}
+	srcGasPrice, err := ac.Querier.GetGasPrice(chainIn)
+	if err != nil || srcGasPrice.Sign() == 0 {
+		log.Warnf("Fail to get gas price on chain %d, err:%v", chainIn, err)
+		srcGasPrice = big.NewInt(int64(ac.GasPrice[chainIn]))
+	}
+	srcGasCost := big.NewInt(int64(ac.SrcGasCost))
+	// represent src gas cost by src token amount
+	srcGasCostInIn := convertAmount(new(big.Int).Mul(srcGasCost, srcGasPrice), nativeInPrice, tokenInPrice, tokenIn.Decimals-nativeIn.Decimals)
+
+	// 2 dst gas cost
 	nativeOut, err := ac.Querier.GetNativeWrap(chainOut)
 	if err != nil {
 		return
@@ -169,37 +178,60 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 	if err != nil {
 		return
 	}
-	rfqFeeAmt, err := ac.Querier.GetRfqFee(chainIn, chainOut, amountIn)
-	if err != nil {
-		return
-	}
-	srcGasPrice, err := ac.Querier.GetGasPrice(chainIn)
-	if err != nil || srcGasPrice.Sign() == 0 {
-		log.Warnf("Fail to get gas price on chain %d, err:%v", chainIn, err)
-		srcGasPrice = big.NewInt(int64(ac.GasPrice[chainIn]))
-	}
 	dstGasPrice, err := ac.Querier.GetGasPrice(chainOut)
 	if err != nil || dstGasPrice.Sign() == 0 {
 		log.Warnf("Fail to get gas price on chain %d, err:%v", chainOut, err)
 		dstGasPrice = big.NewInt(int64(ac.GasPrice[chainOut]))
 	}
+	dstGasCost := big.NewInt(int64(ac.DstGasCost))
+	// represent dst gas cost by src token amount
+	dstGasCostInIn := convertAmount(new(big.Int).Mul(dstGasCost, dstGasPrice), nativeOutPrice, tokenInPrice, tokenIn.Decimals-nativeOut.Decimals)
+
+	// 3 dst msg fee
+	msgFeeAmt, _ := ac.Querier.GetMsgFee(chainOut)
+	// represent dst msg fee by src token amount
+	msgFeeInIn := convertAmount(msgFeeAmt, nativeOutPrice, tokenInPrice, tokenIn.Decimals-nativeOut.Decimals)
+
+	// sum all cost
+	if chainIn != chainOut {
+		// all of 4
+		fixedCost = new(big.Int).Add(srcGasCostInIn, dstGasCostInIn)
+		fixedCost.Add(fixedCost, msgFeeInIn)
+	} else {
+		fixedCost = new(big.Int).Set(dstGasCostInIn)
+	}
+	return
+}
+
+func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn *big.Int) (amountOut, releaseAmt, fee *big.Int, err error) {
+	tokenInPrice, err := ac.PriceProvider.GetPrice(tokenIn)
+	if err != nil {
+		return
+	}
+	tokenOutPrice, err := ac.PriceProvider.GetPrice(tokenOut)
+	if err != nil {
+		return
+	}
+	// calculate rfq protocol fee which is paid in src token
+	rfqFeeAmt, err := ac.Querier.GetRfqFee(tokenIn.ChainId, tokenOut.ChainId, amountIn)
+	if err != nil {
+		return
+	}
 	releaseAmt = new(big.Int).Sub(amountIn, rfqFeeAmt)
 
-	msgFeeAmt, _ := ac.Querier.GetMsgFee(chainOut)
-	dstGasCost := big.NewInt(int64(ac.DstGasCost))
-	srcGasCost := big.NewInt(int64(ac.SrcGasCost))
-	mmFeeAmt := ac.calMmFee(tokenIn, tokenOut, amountIn)
-	msgFeeInIn := convertAmount(msgFeeAmt, nativeOutPrice, tokenInPrice, tokenIn.Decimals-nativeOut.Decimals)
-	dstGasCostInIn := convertAmount(new(big.Int).Mul(dstGasCost, dstGasPrice), nativeOutPrice, tokenInPrice, tokenIn.Decimals-nativeOut.Decimals)
-	srcGasCostInIn := convertAmount(new(big.Int).Mul(srcGasCost, srcGasPrice), nativeInPrice, tokenInPrice, tokenIn.Decimals-nativeIn.Decimals)
-	if tokenIn.ChainId != tokenOut.ChainId {
-		fee = new(big.Int).Add(mmFeeAmt, msgFeeInIn)
-		fee.Add(fee, dstGasCostInIn)
-		fee.Add(fee, srcGasCostInIn)
-	} else {
-		// in same chain swap scenario, no msgFee and no srcGasCost
-		fee = new(big.Int).Add(mmFeeAmt, dstGasCostInIn)
+	// calculate fixed cost, of which unit is src token
+	fixedCost, err := ac.calFixedCost(tokenIn, tokenOut)
+	if err != nil {
+		return
 	}
+
+	// calculate fee required by mm, of which unit is src token
+	mmFeeAmt := ac.calMmFee(tokenIn, tokenOut, amountIn)
+
+	// calculate total fee, described as a sum of fixed cost and mm fee
+	fee = new(big.Int).Add(mmFeeAmt, fixedCost)
+
+	// calculate amount out
 	amountOut = convertAmount(new(big.Int).Sub(releaseAmt, fee), tokenInPrice, tokenOutPrice, tokenOut.Decimals-tokenIn.Decimals)
 	return
 }

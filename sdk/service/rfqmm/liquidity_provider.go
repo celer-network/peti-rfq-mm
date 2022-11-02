@@ -98,10 +98,10 @@ func (d *DefaultLiquidityProvider) SetupTokenPairs(policies []string) {
 			d.setupTokenPairsAll()
 			return
 		} else if strings.HasPrefix(policy, TPPolicyPrefixAny2Of) {
-			arg := strings.TrimSpace(strings.TrimPrefix(policy, TPPolicyPrefixAny2Of))
+			arg := strings.TrimPrefix(policy, TPPolicyPrefixAny2Of)
 			d.setupTokenPairsAny2Of(strings.Split(arg, ","))
 		} else if strings.HasPrefix(policy, TPPolicyPrefixOneOf) {
-			arg := strings.TrimSpace(strings.TrimPrefix(policy, TPPolicyPrefixOneOf))
+			arg := strings.TrimPrefix(policy, TPPolicyPrefixOneOf)
 			d.setupTokenPairsOneOf(strings.Split(arg, ","))
 		}
 		continue
@@ -550,6 +550,7 @@ func (d *DefaultLiquidityProvider) setupTokenPairsOneOf(list []string) {
 // string within list should be in format of [chainId]-[symbol]
 func (d DefaultLiquidityProvider) getTokensByStrList(list []string) []*common.Token {
 	tokens := make([]*common.Token, 0)
+	supportedTokens := d.GetTokens()
 	for _, str := range list {
 		splitRes := strings.Split(str, "-")
 		if len(splitRes) != 2 {
@@ -559,9 +560,11 @@ func (d DefaultLiquidityProvider) getTokensByStrList(list []string) []*common.To
 		if err != nil {
 			continue
 		}
-		token := d.liqManager.GetTokenBySymbol(uint64(chainId), splitRes[1])
-		if token != nil {
-			tokens = append(tokens, token)
+		symbol := splitRes[1]
+		for _, token := range supportedTokens {
+			if token.ChainId == uint64(chainId) && token.Symbol == symbol {
+				tokens = append(tokens, token)
+			}
 		}
 	}
 	return tokens
