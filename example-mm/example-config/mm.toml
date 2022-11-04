@@ -5,12 +5,15 @@ url = "https://cbridge-stat.s3.us-west-2.amazonaws.com/prod2/cbridge-price.json"
 url = ""
 apikey = ""
 
+[requestsigner]
+chainid = 5
+
 [mm]
-requestsigner = 5
-port = 6666
+portListenOn = 6666
 # in second
-pricevalidperiod = 300
-securetransferperiod = 600
-# if faled to report token configs to rfq server, mm will be stucked and retry every <reportperiod> seconds until success.
-reportperiod = 5
-processperiod = 5
+priceValidPeriod = 300
+dstTransferPeriod = 600
+# if faled to report token configs to rfq server, mm will be stucked and retry every <reportRetryPeriod> seconds until success.
+reportRetryPeriod = 5
+processPeriod = 5
+tpPolicyList = ["Any2Of=5-USDT,97-USDT","OneOf=5-USDC,97-USDC"]

@@ -352,21 +352,27 @@ url = "https://cbridge-stat.s3.us-west-2.amazonaws.com/prod2/cbridge-price.json"
 url = "<url-of-rfq-server>"
 apikey = "<your-api-key>"
 
-[mm]
+[requestsigner]
 # indicates which chain's signer will be used as request signer
-requestsigner = 5
+chainid = 5
+
+[mm]
+# token pair policy list indicates from which token to which token the mm is interested in
+tpPolicyList = ["All"]
 # port that mm listens on
-port = 6666
+portListenOn = 6666
 # all periods' unit is second
 # indicates the period during which a price response from this mm is valid
-pricevalidperiod = 300
+priceValidPeriod = 300
 # indicates the minimum period for this mm to complete transferring on dst chain, couting from the user confirms the quotation
-securetransferperiod = 600
+dstTransferPeriod = 600
 # if faled to report token configs to rfq server, mm will be stucked and retry every <reportperiod> seconds until success.
-reportperiod = 5
+reportRetryPeriod = 5
 # time interval for getting and processing pending orders from rfq server
-processperiod = 5
+processPeriod = 5
 ```
+Token pair policy format can be found in [SDK doc](./sdk.md#func-defaultliquidityprovider-setuptokenpairs).
+
 Do not modify `priceprovider.url`. A large json format data of token prices stored under `priceprovider.url`, and is updated
 periodically by other external process. At present, it's the only implementation of price service within default MM application.
 If you're not comfortable with this implementation, you can either try to customize your own MM application or waiting for
@@ -376,7 +382,7 @@ Get `rfqserver.url` at [Information](#information) and fill up your API key.
 
 As mentioned before, MM should be able to sign any data and verify own signatures. Within default MM application, one 
 of the accounts configured in `lp.toml` is used as request signer to sign price and quote response. The chosen account is
-identified by `requestsigner` of which value matches with `lp.chainid`.
+identified by `requestsigner.chainid` of which value matches with `lp.chainid`.
 
 ### Running
 

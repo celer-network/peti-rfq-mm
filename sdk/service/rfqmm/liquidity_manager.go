@@ -64,22 +64,6 @@ func (d *LiqManager) GetTokens() map[uint64][]*common.Token {
 	return res
 }
 
-func (d *LiqManager) GetToken(chainId uint64, addr eth.Addr) *common.Token {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return nil
-	}
-	return lp.getToken(eth.Addr2Hex(addr))
-}
-
-func (d *LiqManager) GetTokenBySymbol(chainId uint64, symbol string) *common.Token {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return nil
-	}
-	return lp.getTokenBySymbol(symbol)
-}
-
 func (d *LiqManager) GetLiquidityProvider(chainId uint64) (eth.Addr, error) {
 	lp, err := d.GetLP(chainId)
 	if err != nil {
@@ -447,20 +431,6 @@ func (lp *LiqProvider) getTokens() []*common.Token {
 		tokens = append(tokens, liq.token)
 	}
 	return tokens
-}
-
-func (lp *LiqProvider) getToken(token string) *common.Token {
-	if liq, found := lp.liqs[token]; found {
-		return liq.token
-	}
-	return nil
-}
-
-func (lp *LiqProvider) getTokenBySymbol(symbol string) *common.Token {
-	if liq, found := lp.liqs[lp.symbolMap[symbol]]; found {
-		return liq.token
-	}
-	return nil
 }
 
 func (lp *LiqProvider) getFreezeTime(token string) (int64, error) {
