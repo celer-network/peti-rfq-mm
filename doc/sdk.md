@@ -780,6 +780,7 @@ func (lp DefaultLiquidityProvider) SetupTokenPairs(policies []string)
 ```
 SetupTokenPairs Method sets up allowed token pairs according to policies.
 Each policy string should be in one of the foloowing formats:
+>Note. Space is not allowed within any policy string.
 1. `All`, means all supported tokens are grouped in pairs. If an MM supports 5 tokens on all chains, then this policy
 will produce 20 pairs.
 2. `Any2Of=<ChainId-TokenSymbol>,...`, means tokens described in policy are grouped in pairs.
@@ -787,7 +788,8 @@ will produce 20 pairs.
     97-USDC -> 5-USDC, 5-USDT -> 97-USDC, 5-USDT -> 97-USDC
 3. `OneOf=<ChainId-TokenSymbol>,<ChainId-TokenSymbol>`, would produce only one token pair which is from the first token to
 the second token.
-    >Example: policy str = "OneOf=5-USDC,97-USDC", token pair = 5-USDC -> 97-USDC
+    >Example: policy str = "OneOf=5-USDC,97-USDC", token pair = 5-USDC -> 97-USDC. Reverse direction is forbidden. Use Any2Of to
+    support both directions.
 
 #### func (*DefaultLiquidityProvider) HasTokenPair
 ```go
