@@ -186,9 +186,7 @@ type LiqProvider struct {
 	// sorted slice by LiqOpDetail.Until in ascending order
 	liqOps []*LiqOpDetail
 	// to minimize searching cost when doing unfreeze
-	hashToUntil map[eth.Hash]int64
-	// a helping map from token symbol to addr str, which can be directly used as key of liqs
-	symbolMap     map[string]string
+	hashToUntil   map[eth.Hash]int64
 	releaseNative bool
 }
 
@@ -223,7 +221,6 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 		panic(err)
 	}
 	liqs := make(map[string]*Liquidity)
-	symbolMap := make(map[string]string)
 	for _, liq := range config.Liqs {
 		amount, _ := new(big.Int).SetString(liq.Amount, 10)
 		approved, _ := new(big.Int).SetString(liq.Approve, 10)
@@ -237,7 +234,6 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 			freezeTime: liq.FreezeTime,
 		}
 		liqs[eth.FormatAddrHex(liq.Address)] = liquidity
-		symbolMap[liq.Symbol] = eth.FormatAddrHex(liq.Address)
 	}
 	return &LiqProvider{
 		signer:        signer,
@@ -246,7 +242,6 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 		liqs:          liqs,
 		liqOps:        make([]*LiqOpDetail, 0),
 		hashToUntil:   make(map[eth.Hash]int64),
-		symbolMap:     symbolMap,
 		releaseNative: config.ReleaseNative,
 	}
 }

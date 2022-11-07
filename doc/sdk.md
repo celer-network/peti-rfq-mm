@@ -779,7 +779,7 @@ GetTokens Method returns a list of all supported tokens.
 func (lp DefaultLiquidityProvider) SetupTokenPairs(policies []string)
 ```
 SetupTokenPairs Method sets up allowed token pairs according to policies.
-Each policy string should be in one of the foloowing formats:
+Each policy string should be in one of the following formats:
 >Note. Space is not allowed within any policy string.
 1. `All`, means all supported tokens are grouped in pairs. If an MM supports 5 tokens on all chains, then this policy
 will produce 20 pairs.

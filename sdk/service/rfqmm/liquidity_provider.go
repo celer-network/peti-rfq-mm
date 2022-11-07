@@ -104,7 +104,6 @@ func (d *DefaultLiquidityProvider) SetupTokenPairs(policies []string) {
 			arg := strings.TrimPrefix(policy, TPPolicyPrefixOneOf)
 			d.setupTokenPairsOneOf(strings.Split(arg, ","))
 		}
-		continue
 	}
 }
 

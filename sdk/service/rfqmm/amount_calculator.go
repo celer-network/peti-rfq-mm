@@ -194,7 +194,7 @@ func (ac *DefaultAmtCalculator) calFixedCost(tokenIn, tokenOut *common.Token) (f
 
 	// sum all cost
 	if chainIn != chainOut {
-		// all of 4
+		// all of 3
 		fixedCost = new(big.Int).Add(srcGasCostInIn, dstGasCostInIn)
 		fixedCost.Add(fixedCost, msgFeeInIn)
 	} else {
