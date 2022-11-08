@@ -227,7 +227,7 @@ See [NewServer](#func-newserver) for more information on creating server.
 - [interface ApiServer](#interface-apiserver)
 - [type Server](#type-server)
   - [func NewServer(config *ServerConfig, client *rfq.Client, cm ChainQuerier, lp LiquidityProvider, ac AmountCalculator, rs RequestSigner) *Server](#func-newserver)
-  - [func (s *Server) Serve(port int, ops ...grpc.ServerOption)](#func-server-serve)
+  - [func (s *Server) Serve(ops ...grpc.ServerOption)](#func-server-serve)
   - [func (s *Server) ReportConfigs()](#func-server-reportconfigs)
   - [func (s *Server) ValidateQuote(quote *proto.Quote, sig []byte) bool](#func-server-validatequote)
   - [func (s *Server) DefaultProcessOrder()](#func-server-defaultprocessorder)

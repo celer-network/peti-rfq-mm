@@ -514,17 +514,18 @@ Price and Quote, and share the subcomponents of Server at the same time.
 Example
 ```go
 type YourMMApp struct {
-	Server *rfqmm.Server
+    Server *rfqmm.Server
 }
 func (mm *YourMMApp) Price(ctx context.Context, request *proto.PriceRequest) (response *proto.PriceResponse, err error) {
-	// todo, remove panic() and write your own implementation
-	panic()
+    // todo, remove panic() and write your own implementation
+    panic()
 }
 func (mm *YourMMApp) Quote(ctx context.Context, request *proto.QuoteRequest) (response *proto.QuoteResponse, err error) {
     // todo, remove panic() and write your own implementation
     panic()
 }
-func (mm *YourMMApp) Serve(port int, ops ...grpc.ServerOption) {
+func (mm *YourMMApp) Serve(ops ...grpc.ServerOption) {
+    port := mm.Server.Config.PortListenOn
     listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
     if err != nil {
         panic(err)
