@@ -56,10 +56,10 @@ func (d *LiqManager) GetChains() []uint64 {
 	return res
 }
 
-func (d *LiqManager) GetTokens() []*common.Token {
-	res := make([]*common.Token, 0)
+func (d *LiqManager) GetTokens() map[uint64][]*common.Token {
+	res := make(map[uint64][]*common.Token, 0)
 	for _, lp := range d.LPs {
-		res = append(res, lp.getTokens()...)
+		res[lp.chainId] = lp.getTokens()
 	}
 	return res
 }

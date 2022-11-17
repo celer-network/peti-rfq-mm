@@ -66,10 +66,3 @@ symbol = "CELR"
 decimals = 18
 # in second
 freezetime = 300
-[[lp.liqs]]
-address = "0xffffffffffffffffffffffffffffffffffffffff"
-symbol = "BNB"
-#amount = "0"
-decimals = 18
-# in second
-freezetime = 200

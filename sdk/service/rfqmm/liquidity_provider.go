@@ -3,6 +3,8 @@ package rfqmm
 import (
 	"fmt"
 	"math/big"
+	"strconv"
+	"strings"
 
 	ethutils "github.com/celer-network/goutils/eth"
 	"github.com/celer-network/goutils/log"
@@ -20,6 +22,9 @@ const (
 	srcRelease           = "SrcRelease"
 	sameChainTransfer    = "SameChainTransfer"
 	NativeTokenReference = "ffffffffffffffffffffffffffffffffffffffff"
+	TPPolicyAll          = "All"
+	TPPolicyPrefixAny2Of = "Any2Of="
+	TPPolicyPrefixOneOf  = "OneOf="
 )
 
 var _ LiquidityProvider = &DefaultLiquidityProvider{}
@@ -29,6 +34,7 @@ type DefaultLiquidityProvider struct {
 	txrs         map[uint64]*ethutils.Transactor
 	chainManager *ChainManager
 	liqManager   *LiqManager
+	tokenPair    map[string]bool
 }
 
 func NewDefaultLiquidityProvider(cm *ChainManager, lm *LiqManager) *DefaultLiquidityProvider {
@@ -37,6 +43,7 @@ func NewDefaultLiquidityProvider(cm *ChainManager, lm *LiqManager) *DefaultLiqui
 		txrs:         make(map[uint64]*ethutils.Transactor),
 		chainManager: cm,
 		liqManager:   lm,
+		tokenPair:    make(map[string]bool),
 	}
 	// construct transactor for each chain
 	for _, chainId := range lm.GetChains() {
@@ -61,20 +68,48 @@ func (d DefaultLiquidityProvider) IsPaused() bool {
 }
 
 func (d DefaultLiquidityProvider) GetTokens() []*common.Token {
-	tokens := d.liqManager.GetTokens()
+	tokensMap := d.liqManager.GetTokens()
 	res := make([]*common.Token, 0)
 	native := eth.Hex2Addr(NativeTokenReference)
-	for _, token := range tokens {
-		if token.GetAddr() == native {
-			wNative, _ := d.chainManager.GetNativeToken(token.ChainId)
-			if wNative == nil || wNative.GetAddr() == eth.ZeroAddr {
-				continue
-			}
-			token.Address = wNative.Address
+	for chainId, tokens := range tokensMap {
+		wNative, err := d.chainManager.GetNativeWrap(chainId)
+		if err != nil {
+			continue
 		}
-		res = append(res, token)
+		addWrappedNative := false
+		for _, token := range tokens {
+			if token.GetAddr() == native || token.GetAddr() == wNative.GetAddr() {
+				addWrappedNative = true
+			} else {
+				res = append(res, token)
+			}
+		}
+		if addWrappedNative && wNative.GetAddr() != eth.ZeroAddr {
+			res = append(res, wNative)
+		}
 	}
 	return res
+}
+
+// policy str is one of {"All", "Any2Of=<chainId>-<symbol>,<chainId>-<symbol>...", "OneOf=<chainId>-<symbol>,<chainId>-<symbol>"}
+func (d *DefaultLiquidityProvider) SetupTokenPairs(policies []string) {
+	for _, policy := range policies {
+		if policy == TPPolicyAll {
+			d.setupTokenPairsAll()
+			return
+		} else if strings.HasPrefix(policy, TPPolicyPrefixAny2Of) {
+			arg := strings.TrimPrefix(policy, TPPolicyPrefixAny2Of)
+			d.setupTokenPairsAny2Of(strings.Split(arg, ","))
+		} else if strings.HasPrefix(policy, TPPolicyPrefixOneOf) {
+			arg := strings.TrimPrefix(policy, TPPolicyPrefixOneOf)
+			d.setupTokenPairsOneOf(strings.Split(arg, ","))
+		}
+	}
+}
+
+func (d DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool {
+	key := genTokenPairKey(srcToken, dstToken)
+	return d.tokenPair[key]
 }
 
 func (d DefaultLiquidityProvider) GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error) {
@@ -168,7 +203,7 @@ func (d *DefaultLiquidityProvider) SrcRelease(_quote rfq.RFQQuote, _execMsgCallD
 	}
 	// determine release native or not
 	releaseNative := false
-	if chain.NativeToken.GetAddr() == _quote.SrcToken {
+	if chain.NativeWrap.GetAddr() == _quote.SrcToken {
 		releaseNative, err = d.liqManager.ReleaseNative(_quote.SrcChainId)
 		if err != nil {
 			return eth.ZeroHash, err
@@ -208,7 +243,7 @@ func (d *DefaultLiquidityProvider) sameChainTransfer(transferNative bool, _quote
 	}
 	// determine release native or not
 	releaseNative := false
-	if chain.NativeToken.GetAddr() == _quote.SrcToken {
+	if chain.NativeWrap.GetAddr() == _quote.SrcToken {
 		releaseNative, err = d.liqManager.ReleaseNative(_quote.SrcChainId)
 		if err != nil {
 			return eth.ZeroHash, err
@@ -411,7 +446,7 @@ func (d DefaultLiquidityProvider) unwrapNative(chainId uint64, amount *big.Int, 
 }
 
 func (d DefaultLiquidityProvider) substituteNativeToken(chainId uint64, wrap eth.Addr) (eth.Addr, error) {
-	expectedWrap, err := d.chainManager.GetNativeToken(chainId)
+	expectedWrap, err := d.chainManager.GetNativeWrap(chainId)
 	if err != nil {
 		return eth.ZeroAddr, err
 	}
@@ -457,4 +492,84 @@ func (d DefaultLiquidityProvider) releaseInLiquidity(chainId uint64, token eth.A
 
 func (d *DefaultLiquidityProvider) pause() {
 	d.paused = true
+}
+
+func (d *DefaultLiquidityProvider) setupTokenPairsAll() {
+	tokens := d.GetTokens()
+	if len(tokens) <= 1 {
+		return
+	}
+	log.Debugf("setup token pairs with policy All")
+	logStr := "Token pairs:"
+	for i := 0; i < len(tokens)-1; i++ {
+		for j := i + 1; j < len(tokens); j++ {
+			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[i].ChainId, tokens[i].Symbol, tokens[j].ChainId, tokens[j].Symbol)
+			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[j].ChainId, tokens[j].Symbol, tokens[i].ChainId, tokens[i].Symbol)
+			d.tokenPair[genTokenPairKey(tokens[i], tokens[j])] = true
+			d.tokenPair[genTokenPairKey(tokens[j], tokens[i])] = true
+		}
+	}
+	log.Debugf(logStr)
+}
+
+func (d *DefaultLiquidityProvider) setupTokenPairsAny2Of(list []string) {
+	if len(list) <= 1 {
+		return
+	}
+	tokens := d.getTokensByStrList(list)
+	if len(tokens) <= 1 {
+		return
+	}
+	log.Debugf("setup token pairs with policy Any2Of")
+	logStr := "Token pairs:"
+	for i := 0; i < len(tokens)-1; i++ {
+		for j := i + 1; j < len(tokens); j++ {
+			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[i].ChainId, tokens[i].Symbol, tokens[j].ChainId, tokens[j].Symbol)
+			logStr += fmt.Sprintf(" %d-%s>>%d-%s |", tokens[j].ChainId, tokens[j].Symbol, tokens[i].ChainId, tokens[i].Symbol)
+			d.tokenPair[genTokenPairKey(tokens[i], tokens[j])] = true
+			d.tokenPair[genTokenPairKey(tokens[j], tokens[i])] = true
+		}
+	}
+	log.Debugf(logStr)
+}
+
+func (d *DefaultLiquidityProvider) setupTokenPairsOneOf(list []string) {
+	if len(list) != 2 {
+		return
+	}
+	tokens := d.getTokensByStrList(list)
+	if len(tokens) != 2 {
+		return
+	}
+	log.Debugf("setup token pairs with policy OneOf")
+	log.Debugf("Token pairs: %d-%s>>%d-%s", tokens[0].ChainId, tokens[0].Symbol, tokens[1].ChainId, tokens[1].Symbol)
+	d.tokenPair[genTokenPairKey(tokens[0], tokens[1])] = true
+}
+
+// string within list should be in format of [chainId]-[symbol]
+func (d DefaultLiquidityProvider) getTokensByStrList(list []string) []*common.Token {
+	tokens := make([]*common.Token, 0)
+	supportedTokens := d.GetTokens()
+	for _, str := range list {
+		splitRes := strings.Split(str, "-")
+		if len(splitRes) != 2 {
+			continue
+		}
+		chainId, err := strconv.Atoi(splitRes[0])
+		if err != nil {
+			continue
+		}
+		symbol := splitRes[1]
+		for _, token := range supportedTokens {
+			if token.ChainId == uint64(chainId) && token.Symbol == symbol {
+				tokens = append(tokens, token)
+			}
+		}
+	}
+	return tokens
+}
+
+func genTokenPairKey(srcToken, dstToken *common.Token) string {
+	return fmt.Sprintf("%d-%s-%d-%d-%s-%d", srcToken.ChainId, eth.FormatAddrHex(srcToken.Address), srcToken.Decimals,
+		dstToken.ChainId, eth.FormatAddrHex(dstToken.Address), dstToken.Decimals)
 }

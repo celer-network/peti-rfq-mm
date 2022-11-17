@@ -227,7 +227,7 @@ See [NewServer](#func-newserver) for more information on creating server.
 - [interface ApiServer](#interface-apiserver)
 - [type Server](#type-server)
   - [func NewServer(config *ServerConfig, client *rfq.Client, cm ChainQuerier, lp LiquidityProvider, ac AmountCalculator, rs RequestSigner) *Server](#func-newserver)
-  - [func (s *Server) Serve(port int, ops ...grpc.ServerOption)](#func-server-serve)
+  - [func (s *Server) Serve(ops ...grpc.ServerOption)](#func-server-serve)
   - [func (s *Server) ReportConfigs()](#func-server-reportconfigs)
   - [func (s *Server) ValidateQuote(quote *proto.Quote, sig []byte) bool](#func-server-validatequote)
   - [func (s *Server) DefaultProcessOrder()](#func-server-defaultprocessorder)
@@ -241,7 +241,7 @@ See [NewServer](#func-newserver) for more information on creating server.
   - [func (cm *ChainManager) GetRfqFee(srcChainId uint64, dstChainId uint64, amount *big.Int) (*big.Int, error)](#func-chainmanager-getrfqfee)
   - [func (cm *ChainManager) GetMsgFee(chainId uint64) (*big.Int, error)](#func-chainmanager-getmsgfee)
   - [func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error)](#func-chainmanager-getgasprice)
-  - [func (cm *ChainManager) GetNativeToken(chainId uint64) (*common.Token, error)](#func-chainmanager-getnativetoken)
+  - [func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error)](#func-chainmanager-getnativetoken)
   - [func (cm *ChainManager) GetERC20Balance(chainId uint64, token eth.Addr, account eth.Addr) (*big.Int, error)](#func-chainmanager-geterc20balance)
   - [func (cm *ChainManager) GetNativeBalance(chainId uint64, account eth.Addr) (*big.Int, error)](#func-chainmanager-getnativebalance)
   - [func (cm *ChainManager) GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)](#func-chainmanager-getquotestatus)
@@ -251,6 +251,8 @@ See [NewServer](#func-newserver) for more information on creating server.
   - [func NewDefaultLiquidityProvider(cm *ChainManager, lm *LiqManager) *DefaultLiquidityProvider](#func-newdefaultliquidityprovider)
   - [func (lp DefaultLiquidityProvider) IsPaused() bool](#func-defaultliquidityprovider-ispaused)
   - [func (lp DefaultLiquidityProvider) GetTokens() []*common.Token](#func-defaultliquidityprovider-gettokens)
+  - [func (lp DefaultLiquidityProvider) SetupTokenPairs(policies []string)](#func-defaultliquidityprovider-setuptokenpairs)
+  - [func (lp DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool](#func-defaultliquidityprovider-hastokenpair)
   - [func (lp DefaultLiquidityProvider) GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error)](#func-defaultliquidityprovider-getliquidityprovideraddr)
   - [func (lp DefaultLiquidityProvider) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) (int64, error)](#func-defaultliquidityprovider-askforfreezing)
   - [func (lp DefaultLiquidityProvider) FreezeLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error](#func-defaultliquidityprovider-freezeliquidity)
@@ -260,7 +262,7 @@ See [NewServer](#func-newserver) for more information on creating server.
 - [type LiqManager](#type-liqmanager)
   - [func NewLiqManager(configs []*LPConfig) *LiqManager](#func-newliqmanager)
   - [func (lm *LiqManager) GetChains() []uint64](#func-liqmanager-getchains)
-  - [func (lm *LiqManager) GetTokens() []*common.Token](#func-liqmanager-gettokens)
+  - [func (lm *LiqManager) GetTokens() map[uint64][]*common.Token](#func-liqmanager-gettokens)
   - [func (lm *LiqManager) GetLiquidityProvider(chainId uint64) (eth.Addr, error)](#func-liqmanager-getliquidityprovider)
   - [func (lm *LiqManager) GetLiqNeedApprove(chainId uint64) ([]*common.Token, []*big.Int, error)](#func-liqmanager-getliqneedapprove)
   - [func (lm *LiqManager) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int) (int64, error)](#func-liqmanager-askforfreezing)
@@ -396,6 +398,10 @@ type ServerConfig struct {
     PriceValidPeriod int64
     // minimum dst transfer period, in order to give mm enough time for dst transfer
     DstTransferPeriod int64
+    // token pair policy list
+    TPPolicyList []string
+    // port num that mm would listen on
+    PortListenOn int64
 }
 func NewServer(config *ServerConfig, client *rfq.Client, cm ChainQuerier, lp LiquidityProvider, ac AmountCalculator, rs RequestSigner) *Server
 ```
@@ -414,15 +420,14 @@ server := rfqmm.NewServer(serverConfig, client, chainQuerier, liquidityProvider,
 
 #### func (*Server) Serve
 ```go
-func (s *Server) Serve(port int, ops ...grpc.ServerOption)
+func (s *Server) Serve(ops ...grpc.ServerOption)
 ```
-Serve Method starts to listen on specific port and serve requests. 
+Serve Method starts the Server. Then it will listen on specific port and serve requests. 
 
 Example:
 ```go
-port := 12345
 // if you want to do anything else after Serve(), run it in a goroutine
-server.Serve(port)
+server.Serve()
 ```
 
 #### func (*Server) ReportConfigs
@@ -521,7 +526,7 @@ type ChainQuerier interface {
 	GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
 	GetMsgFee(chainId uint64) (*big.Int, error)
 	GetGasPrice(chainId uint64) (*big.Int, error)
-	GetNativeToken(chainId uint64) (*common.Token, error)
+	GetNativeWrap(chainId uint64) (*common.Token, error)
 	GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error)
 	GetNativeBalance(chainId uint64, accoun eth.Addr) (*big.Int, error)
 	GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)
@@ -637,15 +642,15 @@ if err != nil || gasPrice.Sign() == 0 {
 }
 ```
 
-#### func (*ChainManager) GetNativeToken
+#### func (*ChainManager) GetNativeWrap
 ```go
-func (cm *ChainManager) GetNativeToken(chainId uint64) (*common.Token, error)
+func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error)
 ```
-GetNativeToken Method get configured native token struct of specific chain.
+GetNativeWrap Method get configured native token struct of specific chain.
 
 Example:
 ```go
-native, err := cm.GetNativeToken(5)
+native, err := cm.GetNativeWrap(5)
 if err != nil {
 	// handle err
 }
@@ -714,6 +719,10 @@ type LiquidityProvider interface {
 	IsPaused() bool
 	// GetTokens returns a list of all supported tokens
 	GetTokens() []*common.Token
+    // SetupTokenPairs sets up supported token pairs based on a given policy list.
+    SetupTokenPairs(policies []string)
+    // HasTokenPair check if a given token pair is supported
+    HasTokenPair(srcToken, dstToken *common.Token) bool
 	// GetLiquidityProviderAddr returns the address of liquidity provider on specified chain
 	GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error)
 	// AskForFreezing checks if there is sufficient liquidity for specified token on specified chain and returns freeze time
@@ -764,6 +773,29 @@ IsPaused Method returns whether the DefaultLiquidityProvider is paused or not.
 func (lp DefaultLiquidityProvider) GetTokens() []*common.Token
 ```
 GetTokens Method returns a list of all supported tokens.
+
+#### func (*DefaultLiquidityProvider) SetupTokenPairs
+```go
+func (lp DefaultLiquidityProvider) SetupTokenPairs(policies []string)
+```
+SetupTokenPairs Method sets up allowed token pairs according to policies.
+Each policy string should be in one of the following formats:
+>Note. Space is not allowed within any policy string.
+1. `All`, means all supported tokens are grouped in pairs. If an MM supports 5 tokens on all chains, then this policy
+will produce 20 pairs.
+2. `Any2Of=<ChainId-TokenSymbol>,...`, means tokens described in policy are grouped in pairs.
+    >Example: policy str = "Any2Of=5-USDC,5-USDT,97-USDC", token pairs = 5-USDC -> 5-USDT, 5-USDT -> 5-USDC, 5-USDC -> 97-USDC,
+    97-USDC -> 5-USDC, 5-USDT -> 97-USDC, 5-USDT -> 97-USDC
+3. `OneOf=<ChainId-TokenSymbol>,<ChainId-TokenSymbol>`, would produce only one token pair which is from the first token to
+the second token.
+    >Example: policy str = "OneOf=5-USDC,97-USDC", token pair = 5-USDC -> 97-USDC. Reverse direction is forbidden. Use Any2Of to
+    support both directions.
+
+#### func (*DefaultLiquidityProvider) HasTokenPair
+```go
+func (lp DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool
+```
+HasTokenPair Method checks whether a token pair is allowed by this MM.
 
 #### func (*DefaultLiquidityProvider) GetLiquidityProviderAddr
 ```go
@@ -903,9 +935,9 @@ GetChains Method returns a non-repeating list of chainId of all liquidity.
 
 #### func (*LiqManager) GetTokens
 ```go
-func (lm *LiqManager) GetTokens() []*common.Token
+func (lm *LiqManager) GetTokens() map[uint64][]*common.Token
 ```
-GetTokens Method returns all configured liquidity token in a list.
+GetTokens Method returns a map from chainId to configured liquidity tokens.
 
 #### func (*LiqManager) GetLiquidityProvider
 ```go
@@ -1098,16 +1130,20 @@ type AmountCalculator interface {
 #### type DefaultAmtCalculator
 ```go
 type DefaultAmtCalculator struct {
-	DstGasCost uint64
-	SrcGasCost uint64
-	// 100% = 1000000
-	FeePercGlobal        uint32
-	PerChainPairOverride map[uint64]map[uint64]uint32
-	PerTokenPairOverride map[string]map[string]uint32
-	GasPrice             map[uint64]uint64
+    // fixed cost related fields
+    DstGasCost uint64
+    SrcGasCost uint64
+    GasPrice   map[uint64]uint64
 
-	Querier       ChainQuerier
-	PriceProvider PriceProvider
+    // personalized fee related fieds
+    // 100% = 1000000
+    FeePercGlobal        uint32
+    PerChainPairOverride map[uint64]map[uint64]uint32
+    PerTokenPairOverride map[string]map[string]uint32
+
+    // helper
+    Querier       ChainQuerier
+    PriceProvider PriceProvider
 }
 ```
 DefaultAmtCalculator is a default implementation of interface AmountCalculator

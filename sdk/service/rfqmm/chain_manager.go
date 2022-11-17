@@ -115,12 +115,12 @@ func (cm *ChainManager) GetMsgFee(chainId uint64) (*big.Int, error) {
 	return chain.MsgFee, nil
 }
 
-func (cm *ChainManager) GetNativeToken(chainId uint64) (*common.Token, error) {
+func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error) {
 	chain, err := cm.GetChain(chainId)
 	if err != nil {
 		return nil, err
 	}
-	return chain.NativeToken, nil
+	return chain.NativeWrap, nil
 }
 
 func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error) {
@@ -175,7 +175,7 @@ type Chain struct {
 	*ethclient.Client
 	ChainId       uint64
 	BlockDelay    uint64
-	NativeToken   *common.Token
+	NativeWrap    *common.Token
 	RfqContract   *rfq.Rfq
 	RfqAddress    eth.Addr
 	IWETH         *iweth.Iweth
@@ -241,11 +241,14 @@ func NewChain(config *RfqMmChainConfig) *Chain {
 			return price.Bytes(), nil
 		}
 	})
+	// set up wrappedNative.ChainId
+	wrappedNative := config.Native
+	wrappedNative.ChainId = config.ChainId
 	chain := &Chain{
 		Client:        ec,
 		ChainId:       config.ChainId,
 		BlockDelay:    config.BlkDelay,
-		NativeToken:   config.Native,
+		NativeWrap:    wrappedNative,
 		RfqContract:   rfqContract,
 		RfqAddress:    eth.Hex2Addr(config.Rfq),
 		IWETH:         iwethContract,
@@ -260,8 +263,8 @@ func (c Chain) GetChainId() uint64 {
 	return c.ChainId
 }
 
-func (c Chain) GetNativeToken() *common.Token {
-	return c.NativeToken
+func (c Chain) GetNativeWrap() *common.Token {
+	return c.NativeWrap
 }
 
 func (c Chain) GetRfqFee(opts *bind.CallOpts, _chainId uint64, _amount *big.Int) (*big.Int, error) {
