@@ -66,4 +66,4 @@ require (
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 )
 
-replace github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.22.1 // to fix ambiguous import
+replace github.com/btcsuite/btcd => github.com/btcsuite/btcd v0.23.2 // to fix ambiguous import

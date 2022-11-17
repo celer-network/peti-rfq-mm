@@ -272,11 +272,11 @@ func (s *Server) processOrder(pendingOrder *rfqproto.PendingOrder) {
 		// 2. verify tx on src chain
 		ok, err := s.ChainCaller.VerifyRfqEvent(quote.GetSrcChainId(), eth.Hex2Hash(pendingOrder.SrcDepositTxHash), rfq.EventNameSrcDeposited)
 		if err != nil {
-			log.Warnf("VerifyRfqEvent err:%s, quoteHash %x", err, quoteHash)
+			log.Warnf("VerifyRfqEvent err:%s, quoteHash %x, srcChainId %d", err, quoteHash, quote.GetSrcChainId())
 			return
 		}
 		if !ok {
-			log.Errorf("[Serious] Quote(hash %x) with status SRC_DEPOSITED does not pass event verification", quoteHash)
+			log.Errorf("[Serious] Quote(hash %x) with status SRC_DEPOSITED does not pass event verification on src chain %d", quoteHash, quote.GetSrcChainId())
 			//s.unfreeze(quote)
 			s.StopProcessing(fmt.Sprintf("the order with hash %x does not pass event verification", quoteHash))
 			return
@@ -284,11 +284,11 @@ func (s *Server) processOrder(pendingOrder *rfqproto.PendingOrder) {
 		// 3. check quoteHash on src chain
 		statusOnChain, err := s.ChainCaller.GetQuoteStatus(quote.GetSrcChainId(), quoteHash)
 		if err != nil {
-			log.Errorf("GetQuoteStatus err:%s, quoteHash %x", err, quoteHash)
+			log.Warnf("GetQuoteStatus err:%s, quoteHash %x, srcChainId %d", err, quoteHash, quote.GetSrcChainId())
 			return
 		}
 		if statusOnChain != rfq.QuoteStatusSrcDeposited {
-			log.Errorf("[Serious] Quote(hash %x) status on src chain is %s, expected %s", quoteHash, rfq.GetQuoteStatusName(statusOnChain), rfq.GetQuoteStatusName(rfq.QuoteStatusSrcDeposited))
+			log.Errorf("[Serious] Quote(hash %x) status on src chain %d is %s, expected %s", quoteHash, quote.GetSrcChainId(), rfq.GetQuoteStatusName(statusOnChain), rfq.GetQuoteStatusName(rfq.QuoteStatusSrcDeposited))
 			//s.unfreeze(quote)
 			s.StopProcessing(fmt.Sprintf("the order with hash %x is not truly deposited on src chain while rfq server thought it is", quoteHash))
 			return
@@ -296,20 +296,20 @@ func (s *Server) processOrder(pendingOrder *rfqproto.PendingOrder) {
 		// 4. send dst transfer
 		txHash, err := s.LiquidityProvider.DstTransfer(pendingOrder.DstNative, quote.ToQuoteOnChain())
 		if err != nil {
-			log.Errorf("DstTransfer err:%s, quoteHash %x", err, quoteHash)
+			log.Warnf("DstTransfer err:%s, quoteHash %x, dstChainId %d", err, quoteHash, quote.GetDstChainId())
 			return
 		}
-		log.Infof("DstTransfer sent with txHash %x, quoteHash %x", txHash, quoteHash)
+		log.Infof("DstTransfer sent with txHash %x, quoteHash %x, dstChainId %d", txHash, quoteHash, quote.GetDstChainId())
 		// 5. update order's status
 		s.updateOrder(quoteHash, rfqproto.OrderStatus_STATUS_MM_DST_EXECUTED, eth.Bytes2Hex(txHash.Bytes()))
 	case rfqproto.OrderStatus_STATUS_DST_TRANSFERRED:
 		// 1. send src release
 		txHash, err := s.LiquidityProvider.SrcRelease(quote.ToQuoteOnChain(), pendingOrder.ExecMsgCallData)
 		if err != nil {
-			log.Errorf("SrcRelease err:%s, quoteHash %x", err, quoteHash)
+			log.Warnf("SrcRelease err:%s, quoteHash %x, srcChainId %d", err, quoteHash, quote.GetSrcChainId())
 			return
 		}
-		log.Infof("SrcRelease sent with txHash %x, quoteHash %x", txHash, quoteHash)
+		log.Infof("SrcRelease sent with txHash %x, quoteHash %x, srcChainId %d", txHash, quoteHash, quote.GetSrcChainId())
 		// 2. update order's status
 		s.updateOrder(quoteHash, rfqproto.OrderStatus_STATUS_MM_SRC_EXECUTED, eth.Bytes2Hex(txHash.Bytes()))
 	}

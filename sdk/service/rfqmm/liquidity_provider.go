@@ -275,13 +275,13 @@ func (d *DefaultLiquidityProvider) genTxHandler(methodName string, _quote rfq.RF
 		return &ethutils.TransactionStateHandler{
 			OnMined: func(receipt *ethtypes.Receipt) {
 				if receipt.Status == ethtypes.ReceiptStatusSuccessful {
-					log.Infof("%s succeeded, tx %x. quote hash %s", methodName, receipt.TxHash, quoteHash)
+					log.Infof("%s succeeded, tx %x chain %d. quote hash %s", methodName, receipt.TxHash, _quote.DstChainId, quoteHash)
 					err := d.transferOutLiquidity(_quote.DstChainId, _quote.DstToken, _quote.DstAmount, quoteHash, transferNative)
 					if err != nil {
 						log.Errorf("TransferOutLiquidity err:%s", err)
 					}
 				} else {
-					log.Errorf("%s failed, tx %x. quote hash %s", methodName, receipt.TxHash, quoteHash)
+					log.Errorf("%s failed, tx %x chain %d. quote hash %s", methodName, receipt.TxHash, _quote.DstChainId, quoteHash)
 					err := d.UnfreezeLiquidity(_quote.DstChainId, quoteHash)
 					if err != nil {
 						log.Errorf("UnfreezeLiquidity err:%s", err)
@@ -290,32 +290,32 @@ func (d *DefaultLiquidityProvider) genTxHandler(methodName string, _quote rfq.RF
 				}
 			},
 			OnError: func(tx *ethtypes.Transaction, err error) {
-				log.Warnf("%s err: %s. quote hash %s", methodName, err, quoteHash)
+				log.Warnf("%s err: %s, chain %d. quote hash %s", methodName, err, _quote.DstChainId, quoteHash)
 			},
 		}
 	case srcRelease:
 		return &ethutils.TransactionStateHandler{
 			OnMined: func(receipt *ethtypes.Receipt) {
 				if receipt.Status == ethtypes.ReceiptStatusSuccessful {
-					log.Infof("%s succeeded, tx %x. quote hash %s", methodName, receipt.TxHash, quoteHash)
+					log.Infof("%s succeeded, tx %x chain %d. quote hash %s", methodName, receipt.TxHash, _quote.SrcChainId, quoteHash)
 					err := d.releaseInLiquidity(_quote.SrcChainId, _quote.SrcToken, _quote.SrcReleaseAmount, releaseNative)
 					if err != nil {
 						log.Errorf("ReleaseInLiquidity err:%s", err)
 					}
 				} else {
-					log.Errorf("%s failed, tx %x. quote hash %s", methodName, receipt.TxHash, quoteHash)
+					log.Errorf("%s failed, tx %x chain %d. quote hash %s", methodName, receipt.TxHash, _quote.SrcChainId, quoteHash)
 					d.pause()
 				}
 			},
 			OnError: func(tx *ethtypes.Transaction, err error) {
-				log.Warnf("%s err: %s. quote hash %s", methodName, err, quoteHash)
+				log.Warnf("%s err: %s, chain %d. quote hash %s", methodName, err, _quote.SrcChainId, quoteHash)
 			},
 		}
 	case sameChainTransfer:
 		return &ethutils.TransactionStateHandler{
 			OnMined: func(receipt *ethtypes.Receipt) {
 				if receipt.Status == ethtypes.ReceiptStatusSuccessful {
-					log.Infof("%s succeeded, tx %x. quote hash %s", methodName, receipt.TxHash, quoteHash)
+					log.Infof("%s succeeded, tx %x chain %d. quote hash %s", methodName, receipt.TxHash, _quote.DstChainId, quoteHash)
 					err := d.transferOutLiquidity(_quote.DstChainId, _quote.DstToken, _quote.DstAmount, quoteHash, transferNative)
 					if err != nil {
 						log.Errorf("TransferOutLiquidity err:%s", err)
@@ -325,7 +325,7 @@ func (d *DefaultLiquidityProvider) genTxHandler(methodName string, _quote rfq.RF
 						log.Errorf("ReleaseInLiquidity err:%s", err)
 					}
 				} else {
-					log.Errorf("%s failed, tx %x. quote hash %s", methodName, receipt.TxHash, quoteHash)
+					log.Errorf("%s failed, tx %x chain %d. quote hash %s", methodName, receipt.TxHash, _quote.DstChainId, quoteHash)
 					err := d.UnfreezeLiquidity(_quote.DstChainId, quoteHash)
 					if err != nil {
 						log.Errorf("UnfreezeLiquidity err:%s", err)
@@ -334,7 +334,7 @@ func (d *DefaultLiquidityProvider) genTxHandler(methodName string, _quote rfq.RF
 				}
 			},
 			OnError: func(tx *ethtypes.Transaction, err error) {
-				log.Warnf("%s err: %s. quote hash %s", methodName, err, quoteHash)
+				log.Warnf("%s err: %s chain %d. quote hash %s", methodName, err, _quote.DstChainId, quoteHash)
 			},
 		}
 	default:
