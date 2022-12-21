@@ -20,6 +20,49 @@ service api {
       body: "*"
     };
   };
+  rpc Sign(SignRequest) returns (SignResponse) {
+    option (google.api.http) = {
+      post: "/v1/rfqmm/sign"
+      body: "*"
+    };
+  };
+  rpc Verify(VerifyRequest) returns (VerifyResponse) {
+    option (google.api.http) = {
+      post: "/v1/rfqmm/verify"
+      body: "*"
+    };
+  };
+  rpc Tokens(TokensRequest) returns (TokensResponse) {
+    option (google.api.http) = {
+      post: "/v1/rfqmm/tokens"
+      body: "*"
+    };
+  };
+}
+message SignRequest {
+  bytes data = 1;
+}
+message SignResponse {
+  common.Err err = 1;
+  bytes sig = 2;
+}
+
+message VerifyRequest {
+  bytes data = 1;
+  bytes sig = 2;
+}
+message VerifyResponse {
+  common.Err err = 1;
+  bool verified = 2;
+}
+
+message TokensRequest {
+
+}
+
+message TokensResponse {
+  common.Err err = 1;
+  repeated common.Token tokens = 2;
 }
 
 message PriceRequest {
@@ -96,13 +139,13 @@ message Quote {
   // nonce that is determined by the server that is used to dedup quotes
   uint64 nonce = 9;
   // sender of the src tx (msg.sender). it's also the user who deposits the src fund
-  string sender = 10; 
+  string sender = 10;
   // the receiver of the token on the dst chain
-  string receiver = 11; 
+  string receiver = 11;
   // the receiver of the refund (if any) on the src chain
-  string refund_to = 12; 
+  string refund_to = 12;
   // the address of the liquidity provider who's going to transfer fund to the user on the dst chain
-  string mm_addr = 13; 
+  string mm_addr = 13;
 }
 
 enum ErrCode {

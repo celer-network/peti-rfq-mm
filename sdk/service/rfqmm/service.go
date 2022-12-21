@@ -349,3 +349,27 @@ func (s *Server) updateOrder(quoteHash eth.Hash, toStatus rfqproto.OrderStatus, 
 		log.Infof("Order updated, quoteHash %x, toStatus %s, txHash %s", quoteHash, toStatus, txHash)
 	}
 }
+
+func (s *Server) Sign(ctx context.Context, request *proto.SignRequest) (*proto.SignResponse, error) {
+	sig, err := s.RequestSigner.Sign(request.GetData())
+	if err != nil {
+		return &proto.SignResponse{
+			Err: err.(*proto.Err).ToCommonErr(),
+		}, nil
+	}
+	return &proto.SignResponse{
+		Sig: sig,
+	}, nil
+}
+
+func (s *Server) Verify(ctx context.Context, request *proto.VerifyRequest) (*proto.VerifyResponse, error) {
+	return &proto.VerifyResponse{
+		Verified: s.RequestSigner.Verify(request.GetData(), request.GetSig()),
+	}, nil
+}
+
+func (s *Server) Tokens(ctx context.Context, request *proto.TokensRequest) (*proto.TokensResponse, error) {
+	return &proto.TokensResponse{
+		Tokens: s.LiquidityProvider.GetTokens(),
+	}, nil
+}
