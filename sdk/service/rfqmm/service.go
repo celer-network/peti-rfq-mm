@@ -61,6 +61,8 @@ type ServerConfig struct {
 	TPPolicyList []string
 	// port num that mm would listen on
 	PortListenOn int64
+	// light mm, which needs a relayer to interact with rfq server
+	LightMM bool
 }
 
 func (config *ServerConfig) clean() {
