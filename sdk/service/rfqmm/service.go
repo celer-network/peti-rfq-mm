@@ -367,7 +367,8 @@ func (s *Server) Sign(ctx context.Context, request *proto.SignRequest) (*proto.S
 }
 
 func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
-	data := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n32"), crypto.Keccak256(EncodeDataToSign(request.GetDstChainId(), eth.Hex2Addr(request.GetContractAddr()), eth.Bytes2Hash(request.GetData()))))
+	encodeData := crypto.Keccak256(EncodeDataToSign(request.GetDstChainId(), eth.Hex2Addr(request.GetContractAddr()), eth.Bytes2Hash(request.GetData())))
+	data := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n32"), encodeData)
 	sig, err := s.RequestSigner.Sign(data)
 	if err != nil {
 		return &proto.SignQuoteHashResponse{
@@ -378,7 +379,7 @@ func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHash
 		// Use 27/28 for v to be compatible with openzeppelin ECDSA lib
 		sig[64] = sig[64] + 27
 	}
-	log.Infof("SignQuoteHash, sig:%s", eth.Bytes2Hex(sig))
+	log.Infof("SignQuoteHash, sig:%s, data:%s", eth.Bytes2Hex(sig), eth.Bytes2Hex(encodeData))
 	return &proto.SignQuoteHashResponse{
 		Sig: sig,
 	}, nil
