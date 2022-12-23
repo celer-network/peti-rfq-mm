@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type ApiClient interface {
 	Price(ctx context.Context, in *PriceRequest, opts ...grpc.CallOption) (*PriceResponse, error)
 	Quote(ctx context.Context, in *QuoteRequest, opts ...grpc.CallOption) (*QuoteResponse, error)
+	SignQuoteHash(ctx context.Context, in *SignQuoteHashRequest, opts ...grpc.CallOption) (*SignQuoteHashResponse, error)
 	Sign(ctx context.Context, in *SignRequest, opts ...grpc.CallOption) (*SignResponse, error)
 	Verify(ctx context.Context, in *VerifyRequest, opts ...grpc.CallOption) (*VerifyResponse, error)
 	Tokens(ctx context.Context, in *TokensRequest, opts ...grpc.CallOption) (*TokensResponse, error)
@@ -49,6 +50,15 @@ func (c *apiClient) Price(ctx context.Context, in *PriceRequest, opts ...grpc.Ca
 func (c *apiClient) Quote(ctx context.Context, in *QuoteRequest, opts ...grpc.CallOption) (*QuoteResponse, error) {
 	out := new(QuoteResponse)
 	err := c.cc.Invoke(ctx, "/service.rfqmm.api/Quote", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *apiClient) SignQuoteHash(ctx context.Context, in *SignQuoteHashRequest, opts ...grpc.CallOption) (*SignQuoteHashResponse, error) {
+	out := new(SignQuoteHashResponse)
+	err := c.cc.Invoke(ctx, "/service.rfqmm.api/SignQuoteHash", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +98,7 @@ func (c *apiClient) Tokens(ctx context.Context, in *TokensRequest, opts ...grpc.
 type ApiServer interface {
 	Price(context.Context, *PriceRequest) (*PriceResponse, error)
 	Quote(context.Context, *QuoteRequest) (*QuoteResponse, error)
+	SignQuoteHash(context.Context, *SignQuoteHashRequest) (*SignQuoteHashResponse, error)
 	Sign(context.Context, *SignRequest) (*SignResponse, error)
 	Verify(context.Context, *VerifyRequest) (*VerifyResponse, error)
 	Tokens(context.Context, *TokensRequest) (*TokensResponse, error)
@@ -102,6 +113,9 @@ func (UnimplementedApiServer) Price(context.Context, *PriceRequest) (*PriceRespo
 }
 func (UnimplementedApiServer) Quote(context.Context, *QuoteRequest) (*QuoteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Quote not implemented")
+}
+func (UnimplementedApiServer) SignQuoteHash(context.Context, *SignQuoteHashRequest) (*SignQuoteHashResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SignQuoteHash not implemented")
 }
 func (UnimplementedApiServer) Sign(context.Context, *SignRequest) (*SignResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Sign not implemented")
@@ -156,6 +170,24 @@ func _Api_Quote_Handler(srv interface{}, ctx context.Context, dec func(interface
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ApiServer).Quote(ctx, req.(*QuoteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Api_SignQuoteHash_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SignQuoteHashRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApiServer).SignQuoteHash(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/service.rfqmm.api/SignQuoteHash",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApiServer).SignQuoteHash(ctx, req.(*SignQuoteHashRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -228,6 +260,10 @@ var Api_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Quote",
 			Handler:    _Api_Quote_Handler,
+		},
+		{
+			MethodName: "SignQuoteHash",
+			Handler:    _Api_SignQuoteHash_Handler,
 		},
 		{
 			MethodName: "Sign",

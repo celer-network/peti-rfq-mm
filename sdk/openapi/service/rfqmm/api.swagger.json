@@ -112,6 +112,38 @@
         ]
       }
     },
+    "/v1/rfqmm/signQuoteHash": {
+      "post": {
+        "operationId": "api_SignQuoteHash",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/rfqmmSignQuoteHashResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/rfqmmSignQuoteHashRequest"
+            }
+          }
+        ],
+        "tags": [
+          "api"
+        ]
+      }
+    },
     "/v1/rfqmm/tokens": {
       "post": {
         "operationId": "api_Tokens",
@@ -329,6 +361,27 @@
         }
       },
       "title": "some of the fields map to the Quote struct in the RFQ contract"
+    },
+    "rfqmmSignQuoteHashRequest": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "rfqmmSignQuoteHashResponse": {
+      "type": "object",
+      "properties": {
+        "err": {
+          "$ref": "#/definitions/commonErr"
+        },
+        "sig": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
     },
     "rfqmmSignRequest": {
       "type": "object",

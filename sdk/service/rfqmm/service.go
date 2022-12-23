@@ -16,6 +16,7 @@ import (
 	rfqserver "github.com/celer-network/peti-rfq-mm/sdk/service/rfq"
 	rfqproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
 	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
+	"github.com/ethereum/go-ethereum/crypto"
 	"google.golang.org/grpc"
 )
 
@@ -353,13 +354,30 @@ func (s *Server) updateOrder(quoteHash eth.Hash, toStatus rfqproto.OrderStatus, 
 }
 
 func (s *Server) Sign(ctx context.Context, request *proto.SignRequest) (*proto.SignResponse, error) {
-	sig, err := s.RequestSigner.Sign(request.Data)
+	sig, err := s.RequestSigner.Sign(request.GetData())
 	if err != nil {
 		return &proto.SignResponse{
 			Err: err.(*proto.Err).ToCommonErr(),
 		}, nil
 	}
 	return &proto.SignResponse{
+		Sig: sig,
+	}, nil
+}
+
+func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
+	data := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n32"), crypto.Keccak256(request.GetData()))
+	sig, err := s.RequestSigner.Sign(data)
+	if err != nil {
+		return &proto.SignQuoteHashResponse{
+			Err: err.(*proto.Err).ToCommonErr(),
+		}, nil
+	}
+	if sig[64] <= 1 {
+		// Use 27/28 for v to be compatible with openzeppelin ECDSA lib
+		sig[64] = sig[64] + 27
+	}
+	return &proto.SignQuoteHashResponse{
 		Sig: sig,
 	}, nil
 }

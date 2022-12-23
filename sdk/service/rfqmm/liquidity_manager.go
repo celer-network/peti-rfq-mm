@@ -451,12 +451,7 @@ func (lp *LiqProvider) getLiqNeedApprove() ([]*common.Token, []*big.Int) {
 var _ RequestSigner = &LiqProvider{}
 
 func (lp *LiqProvider) Sign(data []byte) ([]byte, error) {
-	h := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n32"), crypto.Keccak256(data))
-	sig, err := lp.signer.SignEthMessage(h)
-	if sig[64] <= 1 {
-		// Use 27/28 for v to be compatible with openzeppelin ECDSA lib
-		sig[64] = sig[64] + 27
-	}
+	sig, err := lp.signer.SignEthMessage(data)
 	if err != nil {
 		return nil, proto.NewErr(proto.ErrCode_ERROR_REQUEST_SIGNER, err.Error())
 	}

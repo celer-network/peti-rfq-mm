@@ -20,6 +20,12 @@ service api {
       body: "*"
     };
   };
+  rpc SignQuoteHash(SignQuoteHashRequest) returns (SignQuoteHashResponse) {
+    option (google.api.http) = {
+      post: "/v1/rfqmm/signQuoteHash"
+      body: "*"
+    };
+  };
   rpc Sign(SignRequest) returns (SignResponse) {
     option (google.api.http) = {
       post: "/v1/rfqmm/sign"
@@ -38,6 +44,13 @@ service api {
       body: "*"
     };
   };
+}
+message SignQuoteHashRequest {
+  bytes data = 1;
+}
+message SignQuoteHashResponse {
+  common.Err err = 1;
+  bytes sig = 2;
 }
 message SignRequest {
   bytes data = 1;
