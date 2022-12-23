@@ -17,6 +17,7 @@ import (
 	rfqproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
 	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
 	"github.com/ethereum/go-ethereum/crypto"
+	solsha3 "github.com/miguelmota/go-solidity-sha3"
 	"google.golang.org/grpc"
 )
 
@@ -366,7 +367,7 @@ func (s *Server) Sign(ctx context.Context, request *proto.SignRequest) (*proto.S
 }
 
 func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
-	data := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n32"), crypto.Keccak256(request.GetData()))
+	data := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n32"), crypto.Keccak256(block.chainid, address(this), "AllowedTransfer", request.GetData()))
 	sig, err := s.RequestSigner.Sign(data)
 	if err != nil {
 		return &proto.SignQuoteHashResponse{
@@ -392,4 +393,13 @@ func (s *Server) Tokens(ctx context.Context, request *proto.TokensRequest) (*pro
 	return &proto.TokensResponse{
 		Tokens: s.LiquidityProvider.GetTokens(),
 	}, nil
+}
+
+func EncodeDataToSign(dstChainId uint64, messageId eth.Hash, messageBusAddr eth.Addr, data []byte) []byte {
+	var domain []byte
+	domain = solsha3.SoliditySHA3(
+		[]string{"uint256", "address", "string", "bytes"},
+		new(big.Int).SetUint64(dstChainId), messageBusAddr, "Message", data,
+	)
+	return append(domain, messageId.Bytes()...)
 }

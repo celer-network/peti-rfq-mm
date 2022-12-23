@@ -46,7 +46,9 @@ service api {
   };
 }
 message SignQuoteHashRequest {
-  bytes data = 1;
+  uint64 dst_chain_id = 1;
+  string contract_addr = 2;
+  bytes data = 3;
 }
 message SignQuoteHashResponse {
   common.Err err = 1;
