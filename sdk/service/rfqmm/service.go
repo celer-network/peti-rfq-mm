@@ -16,7 +16,6 @@ import (
 	rfqserver "github.com/celer-network/peti-rfq-mm/sdk/service/rfq"
 	rfqproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
 	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
-	"github.com/ethereum/go-ethereum/crypto"
 	"google.golang.org/grpc"
 )
 
@@ -354,8 +353,7 @@ func (s *Server) updateOrder(quoteHash eth.Hash, toStatus rfqproto.OrderStatus, 
 }
 
 func (s *Server) Sign(ctx context.Context, request *proto.SignRequest) (*proto.SignResponse, error) {
-	data := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n32"), crypto.Keccak256(request.Data))
-	sig, err := s.RequestSigner.Sign(data)
+	sig, err := s.RequestSigner.Sign(request.Data)
 	if err != nil {
 		return &proto.SignResponse{
 			Err: err.(*proto.Err).ToCommonErr(),
