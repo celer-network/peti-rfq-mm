@@ -365,6 +365,13 @@
     "rfqmmSignQuoteHashRequest": {
       "type": "object",
       "properties": {
+        "dstChainId": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "contractAddr": {
+          "type": "string"
+        },
         "data": {
           "type": "string",
           "format": "byte"
