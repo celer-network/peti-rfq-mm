@@ -367,7 +367,7 @@ func (s *Server) Sign(ctx context.Context, request *proto.SignRequest) (*proto.S
 }
 
 func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
-	data := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n32"), crypto.Keccak256(block.chainid, address(this), "AllowedTransfer", request.GetData()))
+	data := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n32"), crypto.Keccak256(EncodeDataToSign(request.GetDstChainId(), eth.Hex2Addr(request.GetContractAddr()), request.GetData())))
 	sig, err := s.RequestSigner.Sign(data)
 	if err != nil {
 		return &proto.SignQuoteHashResponse{
@@ -395,11 +395,10 @@ func (s *Server) Tokens(ctx context.Context, request *proto.TokensRequest) (*pro
 	}, nil
 }
 
-func EncodeDataToSign(dstChainId uint64, messageId eth.Hash, messageBusAddr eth.Addr, data []byte) []byte {
-	var domain []byte
-	domain = solsha3.SoliditySHA3(
-		[]string{"uint256", "address", "string", "bytes"},
-		new(big.Int).SetUint64(dstChainId), messageBusAddr, "Message", data,
+func EncodeDataToSign(dstChainId uint64, dstAddr eth.Addr, data []byte) []byte {
+	domain := solsha3.SoliditySHA3(
+		[]string{"uint256", "address", "string"},
+		new(big.Int).SetUint64(dstChainId), dstAddr, "AllowedTransfer",
 	)
-	return append(domain, messageId.Bytes()...)
+	return append(domain, data...)
 }
