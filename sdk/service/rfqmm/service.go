@@ -397,9 +397,8 @@ func (s *Server) Tokens(ctx context.Context, request *proto.TokensRequest) (*pro
 }
 
 func EncodeDataToSign(dstChainId uint64, dstAddr eth.Addr, data []byte) []byte {
-	domain := solsha3.SoliditySHA3(
-		[]string{"uint256", "address", "string"},
-		new(big.Int).SetUint64(dstChainId), dstAddr, "AllowedTransfer",
+	return solsha3.SoliditySHA3(
+		[]string{"uint256", "address", "string", "bytes"},
+		new(big.Int).SetUint64(dstChainId), dstAddr, "AllowedTransfer", data,
 	)
-	return append(domain, data...)
 }
