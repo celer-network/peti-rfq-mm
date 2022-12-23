@@ -378,6 +378,7 @@ func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHash
 		// Use 27/28 for v to be compatible with openzeppelin ECDSA lib
 		sig[64] = sig[64] + 27
 	}
+	log.Infof("SignQuoteHash, sig:%s", eth.Bytes2Hex(sig))
 	return &proto.SignQuoteHashResponse{
 		Sig: sig,
 	}, nil
