@@ -4,6 +4,8 @@ go 1.18
 
 require (
 	github.com/celer-network/goutils v0.1.56
+	github.com/golang/protobuf v1.5.2
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/miguelmota/go-solidity-sha3 v0.1.1
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.10.1
@@ -52,7 +54,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.2.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/rjeczalik/notify v0.9.2 // indirect
