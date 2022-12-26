@@ -2,10 +2,12 @@ package rfqmm
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/celer-network/goutils/log"
+	"github.com/celer-network/peti-rfq-mm/sdk/bindings/rfq"
 	"github.com/celer-network/peti-rfq-mm/sdk/eth"
 	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
 	solsha3 "github.com/miguelmota/go-solidity-sha3"
@@ -163,7 +165,39 @@ func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHash
 		return signQuoteHashArgumentErr(err.Error())
 	}
 
-	data := EncodeDataToSign(dstChainId, rfqContract, request.GetQuote().GetQuoteHash())
+	// 0. check quote hash
+	quote := request.Quote
+	quoteHash := quote.GetQuoteHash()
+	if !s.ValidateQuote(quote, eth.Hex2Bytes(request.QuoteSig)) {
+		return signQuoteHashArgumentErr(fmt.Sprintf("invalid quote, quoteHash %x", quoteHash))
+	}
+
+	// 1. check dst deadline
+	timestamp := time.Now().Unix()
+	if quote.DstDeadline < timestamp {
+		msg := fmt.Sprintf("SrcDeposited order with hash %x has past dst deadline %s, now is %s.", quoteHash,
+			time.Unix(quote.DstDeadline, 0).Format("2006-01-02 15:04:06"),
+			time.Unix(timestamp, 0).Format("2006-01-02 15:04:06"))
+		return signQuoteHashArgumentErr("invalid dst deadline: " + msg)
+	}
+	// 2. verify tx on src chain
+	ok, err := s.ChainCaller.VerifyRfqEvent(quote.GetSrcChainId(), eth.Hex2Hash(request.SrcDepositTxHash), rfq.EventNameSrcDeposited)
+	if err != nil {
+		return signQuoteHashArgumentErr(fmt.Sprintf("VerifyRfqEvent err:%s, quoteHash %x", err, quoteHash))
+	}
+	if !ok {
+		return signQuoteHashArgumentErr(fmt.Sprintf("the order with hash %x does not pass event verification", quoteHash))
+	}
+	// 3. check quoteHash on src chain
+	statusOnChain, err := s.ChainCaller.GetQuoteStatus(quote.GetSrcChainId(), quoteHash)
+	if err != nil {
+		return signQuoteHashArgumentErr(fmt.Sprintf("GetQuoteStatus err:%s, quoteHash %x", err, quoteHash))
+	}
+	if statusOnChain != rfq.QuoteStatusSrcDeposited {
+		return signQuoteHashArgumentErr(fmt.Sprintf("[Serious] Quote(hash %x) status on src chain is %s, expected %s", quoteHash, rfq.GetQuoteStatusName(statusOnChain), rfq.GetQuoteStatusName(rfq.QuoteStatusSrcDeposited)))
+	}
+
+	data := EncodeDataToSign(dstChainId, rfqContract, quoteHash)
 	sig, err := s.RequestSigner.Sign(data)
 	if err != nil {
 		return &proto.SignQuoteHashResponse{
@@ -174,13 +208,13 @@ func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHash
 		// Use 27/28 for v to be compatible with openzeppelin ECDSA lib
 		sig[64] = sig[64] + 27
 	}
-	log.Infof("SignQuoteHash, sig:%s, data:%s", eth.Bytes2Hex(sig), eth.Bytes2Hex(data))
 	return &proto.SignQuoteHashResponse{
 		Sig: sig,
 	}, nil
 }
 
 func signQuoteHashArgumentErr(reason string) (*proto.SignQuoteHashResponse, error) {
+	log.Errorln("signQuoteHashArgumentErr:", reason)
 	return &proto.SignQuoteHashResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, reason).ToCommonErr()}, nil
 }
 
