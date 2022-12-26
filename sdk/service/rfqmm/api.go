@@ -162,6 +162,7 @@ func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHash
 	if err != nil {
 		return signQuoteHashArgumentErr(err.Error())
 	}
+
 	data := EncodeDataToSign(dstChainId, rfqContract, request.GetQuote().GetQuoteHash())
 	sig, err := s.RequestSigner.Sign(data)
 	if err != nil {
@@ -196,9 +197,9 @@ func (s *Server) Tokens(ctx context.Context, request *proto.TokensRequest) (*pro
 }
 
 func EncodeDataToSign(dstChainId uint64, dstAddr eth.Addr, data eth.Hash) []byte {
-	return solsha3.SoliditySHA3(
+	return solsha3.Pack(
 		[]string{"uint256", "address", "string", "bytes32"},
-		new(big.Int).SetUint64(dstChainId), dstAddr, "AllowedTransfer", data,
+		[]interface{}{new(big.Int).SetUint64(dstChainId), dstAddr, "AllowedTransfer", data},
 	)
 }
 
