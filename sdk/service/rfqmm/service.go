@@ -16,7 +16,6 @@ import (
 	rfqserver "github.com/celer-network/peti-rfq-mm/sdk/service/rfq"
 	rfqproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
 	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
-	"github.com/ethereum/go-ethereum/crypto"
 	solsha3 "github.com/miguelmota/go-solidity-sha3"
 	"google.golang.org/grpc"
 )
@@ -367,8 +366,7 @@ func (s *Server) Sign(ctx context.Context, request *proto.SignRequest) (*proto.S
 }
 
 func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
-	encodeData := EncodeDataToSign(request.GetDstChainId(), eth.Hex2Addr(request.GetContractAddr()), eth.Bytes2Hash(request.GetData()))
-	data := crypto.Keccak256(encodeData)
+	data := EncodeDataToSign(request.GetDstChainId(), eth.Hex2Addr(request.GetContractAddr()), eth.Bytes2Hash(request.GetData()))
 	sig, err := s.RequestSigner.Sign(data)
 	if err != nil {
 		return &proto.SignQuoteHashResponse{
@@ -379,7 +377,7 @@ func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHash
 		// Use 27/28 for v to be compatible with openzeppelin ECDSA lib
 		sig[64] = sig[64] + 27
 	}
-	log.Infof("SignQuoteHash, sig:%s, data:%s", eth.Bytes2Hex(sig), eth.Bytes2Hex(encodeData))
+	log.Infof("SignQuoteHash, sig:%s, data:%s", eth.Bytes2Hex(sig), eth.Bytes2Hex(data))
 	return &proto.SignQuoteHashResponse{
 		Sig: sig,
 	}, nil
