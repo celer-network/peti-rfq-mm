@@ -80,6 +80,9 @@ func NewExampleMM() *ExampleMM {
 		log.Fatalf("failed to load mm server configs:%v", err)
 		return nil
 	}
+
+	// todo new signer
+
 	server := rfqmm.NewServer(serverConfig, client, cm, lp, ac, requestSigner)
 
 	return &ExampleMM{

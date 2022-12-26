@@ -87,6 +87,8 @@ message PriceRequest {
   string dst_amount = 4;
   // indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)
   bool dst_native = 5;
+  // replace fixed_fee in configuration
+  string base_fee = 6;
 }
 
 message PriceResponse {

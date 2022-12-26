@@ -48,6 +48,7 @@ func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (respon
 	sendAmount := new(big.Int)
 	releaseAmount := new(big.Int)
 	receiveAmount := new(big.Int)
+	baseFee := new(big.Int)
 	fee := new(big.Int)
 	// switch mod, one is sendAmt => receiveAmt, the other one is receiveAmt => sendAmt
 	if request.SrcAmount == "" {
@@ -59,7 +60,8 @@ func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (respon
 		}
 	} else {
 		sendAmount.SetString(request.SrcAmount, 10)
-		receiveAmount, releaseAmount, fee, err = s.AmountCalculator.CalRecvAmt(request.SrcToken, request.DstToken, sendAmount)
+		baseFee.SetString(request.BaseFee, 10)
+		receiveAmount, releaseAmount, fee, err = s.AmountCalculator.CalRecvAmt(request.SrcToken, request.DstToken, sendAmount, baseFee)
 		if err != nil {
 			return &proto.PriceResponse{Err: err.(*proto.Err).ToCommonErr()}, nil
 		}
@@ -108,19 +110,11 @@ func (s *Server) Quote(ctx context.Context, request *proto.QuoteRequest) (respon
 	}
 	price := request.Price
 	quote := request.Quote
-	srcAmt := price.GetSrcAmt()
 	if !s.RequestSigner.Verify(price.EncodeSignData(), eth.Hex2Bytes(price.Sig)) {
 		return &proto.QuoteResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "invalid sig").ToCommonErr()}, nil
 	}
 	if !quote.ValidateQuoteHash() {
 		return &proto.QuoteResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "invalid quote hash").ToCommonErr()}, nil
-	}
-	rfqFee, err := s.ChainCaller.GetRfqFee(price.GetSrcChainId(), price.GetDstChainId(), srcAmt)
-	if err != nil {
-		return &proto.QuoteResponse{Err: err.(*proto.Err).ToCommonErr()}, nil
-	}
-	if new(big.Int).Sub(srcAmt, rfqFee).Cmp(price.GetSrcReleaseAmt()) == -1 {
-		return &proto.QuoteResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "incorrect src release amount").ToCommonErr()}, nil
 	}
 	dstAmt := price.GetDstAmt()
 	dstTokenAddr := request.Price.DstToken.GetAddr()

@@ -486,6 +486,10 @@
         "dstNative": {
           "type": "boolean",
           "title": "indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)"
+        },
+        "baseFee": {
+          "type": "string",
+          "title": "replace fixed_fee in configuration"
         }
       }
     },
