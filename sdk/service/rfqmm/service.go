@@ -368,7 +368,7 @@ func (s *Server) Sign(ctx context.Context, request *proto.SignRequest) (*proto.S
 
 func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
 	encodeData := EncodeDataToSign(request.GetDstChainId(), eth.Hex2Addr(request.GetContractAddr()), eth.Bytes2Hash(request.GetData()))
-	data := crypto.Keccak256([]byte("\x19Ethereum Signed Message:\n32"), encodeData)
+	data := crypto.Keccak256(encodeData)
 	sig, err := s.RequestSigner.Sign(data)
 	if err != nil {
 		return &proto.SignQuoteHashResponse{
