@@ -226,6 +226,8 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 		if err != nil {
 			return
 		}
+	} else {
+		releaseAmt = new(big.Int).Sub(releaseAmt, fixedCost)
 	}
 
 	// calculate fee required by mm, of which unit is src token
