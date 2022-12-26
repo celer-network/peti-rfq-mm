@@ -365,16 +365,14 @@
     "rfqmmSignQuoteHashRequest": {
       "type": "object",
       "properties": {
-        "dstChainId": {
-          "type": "string",
-          "format": "uint64"
+        "quote": {
+          "$ref": "#/definitions/rfqmmQuote"
         },
-        "contractAddr": {
+        "srcDepositTxHash": {
           "type": "string"
         },
-        "data": {
-          "type": "string",
-          "format": "byte"
+        "quoteSig": {
+          "type": "string"
         }
       }
     },

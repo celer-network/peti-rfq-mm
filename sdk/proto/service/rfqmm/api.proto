@@ -46,9 +46,9 @@ service api {
   };
 }
 message SignQuoteHashRequest {
-  uint64 dst_chain_id = 1;
-  string contract_addr = 2;
-  bytes data = 3;
+  Quote quote = 1;
+  string src_deposit_tx_hash = 2;
+  string quote_sig = 3;
 }
 message SignQuoteHashResponse {
   common.Err err = 1;

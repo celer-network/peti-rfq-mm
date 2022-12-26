@@ -8,6 +8,7 @@ import (
 	"github.com/celer-network/goutils/log"
 	"github.com/celer-network/peti-rfq-mm/sdk/eth"
 	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
+	solsha3 "github.com/miguelmota/go-solidity-sha3"
 	"google.golang.org/grpc"
 )
 
@@ -141,6 +142,64 @@ func (s *Server) Quote(ctx context.Context, request *proto.QuoteRequest) (respon
 	//	return &proto.QuoteResponse{Err: err.(*proto.Err).ToCommonErr()}, nil
 	//}
 	return &proto.QuoteResponse{QuoteSig: eth.Bytes2Hex(sigBytes)}, nil
+}
+
+func (s *Server) Sign(ctx context.Context, request *proto.SignRequest) (*proto.SignResponse, error) {
+	sig, err := s.RequestSigner.Sign(request.GetData())
+	if err != nil {
+		return &proto.SignResponse{
+			Err: err.(*proto.Err).ToCommonErr(),
+		}, nil
+	}
+	return &proto.SignResponse{
+		Sig: sig,
+	}, nil
+}
+
+func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
+	dstChainId := request.GetQuote().GetDstChainId()
+	rfqContract, err := s.ChainCaller.GetRfqContract(dstChainId)
+	if err != nil {
+		return signQuoteHashArgumentErr(err.Error())
+	}
+	data := EncodeDataToSign(dstChainId, rfqContract, request.GetQuote().GetQuoteHash())
+	sig, err := s.RequestSigner.Sign(data)
+	if err != nil {
+		return &proto.SignQuoteHashResponse{
+			Err: err.(*proto.Err).ToCommonErr(),
+		}, nil
+	}
+	if sig[64] <= 1 {
+		// Use 27/28 for v to be compatible with openzeppelin ECDSA lib
+		sig[64] = sig[64] + 27
+	}
+	log.Infof("SignQuoteHash, sig:%s, data:%s", eth.Bytes2Hex(sig), eth.Bytes2Hex(data))
+	return &proto.SignQuoteHashResponse{
+		Sig: sig,
+	}, nil
+}
+
+func signQuoteHashArgumentErr(reason string) (*proto.SignQuoteHashResponse, error) {
+	return &proto.SignQuoteHashResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, reason).ToCommonErr()}, nil
+}
+
+func (s *Server) Verify(ctx context.Context, request *proto.VerifyRequest) (*proto.VerifyResponse, error) {
+	return &proto.VerifyResponse{
+		Verified: s.RequestSigner.Verify(request.GetData(), request.GetSig()),
+	}, nil
+}
+
+func (s *Server) Tokens(ctx context.Context, request *proto.TokensRequest) (*proto.TokensResponse, error) {
+	return &proto.TokensResponse{
+		Tokens: s.LiquidityProvider.GetTokens(),
+	}, nil
+}
+
+func EncodeDataToSign(dstChainId uint64, dstAddr eth.Addr, data eth.Hash) []byte {
+	return solsha3.SoliditySHA3(
+		[]string{"uint256", "address", "string", "bytes32"},
+		new(big.Int).SetUint64(dstChainId), dstAddr, "AllowedTransfer", data,
+	)
 }
 
 func validatePriceRequest(request *proto.PriceRequest) (bool, string) {
