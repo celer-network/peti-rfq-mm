@@ -63,6 +63,8 @@ type ServerConfig struct {
 	PortListenOn int64
 	// light mm, which needs a relayer to interact with rfq server
 	LightMM bool
+	// if not set, will use localhost
+	Host string
 }
 
 func (config *ServerConfig) clean() {
@@ -166,8 +168,12 @@ func NewServer(config *ServerConfig, client *rfqserver.Client, cm ChainQuerier, 
 }
 
 func (s *Server) Serve(ops ...grpc.ServerOption) {
-	log.Infof("Start mm server, listen on port %d", s.Config.PortListenOn)
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", s.Config.PortListenOn))
+	host := s.Config.Host
+	if host == "" {
+		host = "localhost"
+	}
+	log.Infof("Start mm server, listen on %s:%d", host, s.Config.PortListenOn)
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, s.Config.PortListenOn))
 	if err != nil {
 		panic(err)
 	}

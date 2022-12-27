@@ -215,6 +215,20 @@ type LiquidityConfig struct {
 	FreezeTime int64
 }
 
+type SignerConfig struct {
+	ChainId    uint64
+	Keystore   string
+	Passphrase string
+}
+
+func NewSigner(config *SignerConfig) (ethutils.Signer, eth.Addr) {
+	signer, addr, err := createSigner(config.Keystore, config.Passphrase, big.NewInt(int64(config.ChainId)))
+	if err != nil {
+		panic(err)
+	}
+	return signer, addr
+}
+
 func NewLiqProvider(config *LPConfig) *LiqProvider {
 	signer, addr, err := createSigner(config.Keystore, config.Passphrase, big.NewInt(int64(config.ChainId)))
 	if err != nil {
@@ -244,6 +258,11 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 		hashToUntil:   make(map[eth.Hash]int64),
 		releaseNative: config.ReleaseNative,
 	}
+}
+
+func (lp *LiqProvider) SetSigner(signer ethutils.Signer, addr eth.Addr) {
+	lp.signer = signer
+	lp.address = addr
 }
 
 func (lp *LiqProvider) log() {

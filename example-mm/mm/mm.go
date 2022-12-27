@@ -40,8 +40,17 @@ func NewExampleMM() *ExampleMM {
 	lm := rfqmm.NewLiqManager(lpConfig)
 
 	// get a signer from Liquidity Manager by chain id
-	rsChainId := viper.GetUint64(RequestSigner)
+	var signerConfig *rfqmm.SignerConfig
+	err = viper.UnmarshalKey(RequestSigner, &signerConfig)
+	if err != nil {
+		log.Fatalf("failed to load signer configs:%v", err)
+		return nil
+	}
+	rsChainId := signerConfig.ChainId
 	requestSigner, _ := lm.GetLP(rsChainId)
+	if signerConfig.Keystore != "" {
+		requestSigner.SetSigner(rfqmm.NewSigner(signerConfig))
+	}
 
 	// new Chain Manager
 	var chainConfig []*rfqmm.RfqMmChainConfig
@@ -80,8 +89,6 @@ func NewExampleMM() *ExampleMM {
 		log.Fatalf("failed to load mm server configs:%v", err)
 		return nil
 	}
-
-	// todo new signer
 
 	server := rfqmm.NewServer(serverConfig, client, cm, lp, ac, requestSigner)
 
