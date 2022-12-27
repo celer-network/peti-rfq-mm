@@ -19,7 +19,7 @@ const (
 	PriceProviderUrl = "priceprovider.url"
 	RfqServerUrl     = "rfqserver.url"
 	RfqServerApikey  = "rfqserver.apikey"
-	RequestSigner    = "requestsigner.chainid"
+	RequestSigner    = "requestsigner"
 	MMConfig         = "mm"
 )
 
