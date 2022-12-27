@@ -174,16 +174,15 @@ func (d *LiqManager) GetSigner(chainId uint64) (eth.Addr, ethutils.Signer, error
 	if err != nil {
 		return eth.ZeroAddr, nil, err
 	}
-	return lp.signerAddress, lp.signer, nil
+	return lp.address, lp.signer, nil
 }
 
 type LiqProvider struct {
-	mux           sync.RWMutex
-	signer        ethutils.Signer
-	signerAddress eth.Addr
-	chainId       uint64
-	address       eth.Addr
-	liqs          map[string]*Liquidity
+	mux     sync.RWMutex
+	signer  ethutils.Signer
+	chainId uint64
+	address eth.Addr
+	liqs    map[string]*Liquidity
 	// sorted slice by LiqOpDetail.Until in ascending order
 	liqOps []*LiqOpDetail
 	// to minimize searching cost when doing unfreeze
@@ -216,20 +215,6 @@ type LiquidityConfig struct {
 	FreezeTime int64
 }
 
-type SignerConfig struct {
-	ChainId    uint64
-	Keystore   string
-	Passphrase string
-}
-
-func NewSigner(config *SignerConfig) (ethutils.Signer, eth.Addr) {
-	signer, addr, err := createSigner(config.Keystore, config.Passphrase, big.NewInt(int64(config.ChainId)))
-	if err != nil {
-		panic(err)
-	}
-	return signer, addr
-}
-
 func NewLiqProvider(config *LPConfig) *LiqProvider {
 	signer, addr, err := createSigner(config.Keystore, config.Passphrase, big.NewInt(int64(config.ChainId)))
 	if err != nil {
@@ -254,17 +239,11 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 		signer:        signer,
 		chainId:       config.ChainId,
 		address:       addr,
-		signerAddress: addr,
 		liqs:          liqs,
 		liqOps:        make([]*LiqOpDetail, 0),
 		hashToUntil:   make(map[eth.Hash]int64),
 		releaseNative: config.ReleaseNative,
 	}
-}
-
-func (lp *LiqProvider) SetSigner(signer ethutils.Signer, addr eth.Addr) {
-	lp.signer = signer
-	lp.signerAddress = addr
 }
 
 func (lp *LiqProvider) log() {
@@ -467,27 +446,6 @@ func (lp *LiqProvider) getLiqNeedApprove() ([]*common.Token, []*big.Int) {
 		}
 	}
 	return tokens, amounts
-}
-
-var _ RequestSigner = &LiqProvider{}
-
-func (lp *LiqProvider) Sign(data []byte) ([]byte, error) {
-	sig, err := lp.signer.SignEthMessage(data)
-	if err != nil {
-		return nil, proto.NewErr(proto.ErrCode_ERROR_REQUEST_SIGNER, err.Error())
-	}
-	return sig, nil
-}
-
-func (lp *LiqProvider) Verify(data, sig []byte) bool {
-	addr, err := ethutils.RecoverSigner(data, sig)
-	if err != nil {
-		return false
-	}
-	if lp.signerAddress != addr {
-		return false
-	}
-	return true
 }
 
 type Liquidity struct {
