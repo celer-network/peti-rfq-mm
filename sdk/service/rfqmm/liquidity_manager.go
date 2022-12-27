@@ -178,11 +178,12 @@ func (d *LiqManager) GetSigner(chainId uint64) (eth.Addr, ethutils.Signer, error
 }
 
 type LiqProvider struct {
-	mux     sync.RWMutex
-	signer  ethutils.Signer
-	chainId uint64
-	address eth.Addr
-	liqs    map[string]*Liquidity
+	mux           sync.RWMutex
+	signer        ethutils.Signer
+	signerAddress eth.Addr
+	chainId       uint64
+	address       eth.Addr
+	liqs          map[string]*Liquidity
 	// sorted slice by LiqOpDetail.Until in ascending order
 	liqOps []*LiqOpDetail
 	// to minimize searching cost when doing unfreeze
@@ -253,6 +254,7 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 		signer:        signer,
 		chainId:       config.ChainId,
 		address:       addr,
+		signerAddress: addr,
 		liqs:          liqs,
 		liqOps:        make([]*LiqOpDetail, 0),
 		hashToUntil:   make(map[eth.Hash]int64),
@@ -262,7 +264,7 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 
 func (lp *LiqProvider) SetSigner(signer ethutils.Signer, addr eth.Addr) {
 	lp.signer = signer
-	lp.address = addr
+	lp.signerAddress = addr
 }
 
 func (lp *LiqProvider) log() {
