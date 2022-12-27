@@ -174,7 +174,7 @@ func (d *LiqManager) GetSigner(chainId uint64) (eth.Addr, ethutils.Signer, error
 	if err != nil {
 		return eth.ZeroAddr, nil, err
 	}
-	return lp.address, lp.signer, nil
+	return lp.signerAddress, lp.signer, nil
 }
 
 type LiqProvider struct {
@@ -484,7 +484,7 @@ func (lp *LiqProvider) Verify(data, sig []byte) bool {
 	if err != nil {
 		return false
 	}
-	if lp.address != addr {
+	if lp.signerAddress != addr {
 		return false
 	}
 	return true
