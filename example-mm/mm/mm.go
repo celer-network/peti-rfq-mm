@@ -46,7 +46,22 @@ func NewExampleMM() *ExampleMM {
 		log.Fatalf("failed to load signer configs:%v", err)
 		return nil
 	}
-	requestSigner := rfqmm.NewRequestSigner(signerConfig)
+	var requestSigner rfqmm.RequestSigner
+	if signerConfig.Keystore != "" {
+		// use customized signer config
+		requestSigner = rfqmm.NewRequestSigner(signerConfig)
+	} else {
+		// use chain signer
+		rsChainId := signerConfig.ChainId
+		signerAddr, signer, err0 := lm.GetSigner(rsChainId)
+		if err0 != nil {
+			panic(err0)
+		}
+		requestSigner = &rfqmm.DefaultRequestSigner{
+			Signer:  signer,
+			Address: signerAddr,
+		}
+	}
 
 	// new Chain Manager
 	var chainConfig []*rfqmm.RfqMmChainConfig

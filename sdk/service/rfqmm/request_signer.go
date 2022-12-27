@@ -15,8 +15,8 @@ type RequestSignerConfig struct {
 }
 
 type DefaultRequestSigner struct {
-	signer  ethutils.Signer
-	address eth.Addr
+	Signer  ethutils.Signer
+	Address eth.Addr
 }
 
 func NewRequestSigner(config *RequestSignerConfig) RequestSigner {
@@ -25,15 +25,15 @@ func NewRequestSigner(config *RequestSignerConfig) RequestSigner {
 		panic(err)
 	}
 	return &DefaultRequestSigner{
-		signer:  signer,
-		address: addr,
+		Signer:  signer,
+		Address: addr,
 	}
 }
 
 var _ RequestSigner = &DefaultRequestSigner{}
 
 func (rs *DefaultRequestSigner) Sign(data []byte) ([]byte, error) {
-	sig, err := rs.signer.SignEthMessage(data)
+	sig, err := rs.Signer.SignEthMessage(data)
 	if err != nil {
 		return nil, proto.NewErr(proto.ErrCode_ERROR_REQUEST_SIGNER, err.Error())
 	}
@@ -45,7 +45,7 @@ func (rs *DefaultRequestSigner) Verify(data, sig []byte) bool {
 	if err != nil {
 		return false
 	}
-	if rs.address != addr {
+	if rs.Address != addr {
 		return false
 	}
 	return true
