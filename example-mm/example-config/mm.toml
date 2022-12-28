@@ -22,5 +22,5 @@ processPeriod = 5
 tpPolicyList = ["Any2Of=5-USDT,97-USDT","OneOf=5-USDC,97-USDC"]
 # change lightMM to true if it is light mm
 lightMM = false
-# change host to "0.0.0.0" if svc opening to wild web
+# change host to "0.0.0.0" if svc opening to public web directly
 host="localhost"
