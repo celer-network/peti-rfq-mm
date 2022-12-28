@@ -129,7 +129,7 @@ type LiquidityProvider interface {
 }
 
 type AmountCalculator interface {
-	CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFee *big.Int) (recvAmt, releaseAmt, fee *big.Int, err error)
+	CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFee *big.Int, isLightMM bool) (recvAmt, releaseAmt, fee *big.Int, err error)
 	CalSendAmt(tokenIn, tokenOut *common.Token, amountOut *big.Int) (sendAmt, releaseAmt, fee *big.Int, err error)
 }
 

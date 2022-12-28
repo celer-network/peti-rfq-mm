@@ -203,7 +203,7 @@ func (ac *DefaultAmtCalculator) calFixedCost(tokenIn, tokenOut *common.Token) (f
 	return
 }
 
-func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFee *big.Int) (amountOut, releaseAmt, fee *big.Int, err error) {
+func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFee *big.Int, isLightMM bool) (amountOut, releaseAmt, fee *big.Int, err error) {
 	tokenInPrice, err := ac.PriceProvider.GetPrice(tokenIn)
 	if err != nil {
 		return
@@ -221,7 +221,7 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 
 	// calculate fixed cost, of which unit is src token
 	fixedCost := baseFee
-	if fixedCost.Cmp(new(big.Int).SetInt64(0)) == 0 {
+	if !isLightMM {
 		fixedCost, err = ac.calFixedCost(tokenIn, tokenOut)
 		if err != nil {
 			return

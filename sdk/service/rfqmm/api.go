@@ -60,7 +60,7 @@ func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (respon
 	} else {
 		sendAmount.SetString(request.SrcAmount, 10)
 		baseFee.SetString(request.BaseFee, 10)
-		receiveAmount, releaseAmount, fee, err = s.AmountCalculator.CalRecvAmt(request.SrcToken, request.DstToken, sendAmount, baseFee)
+		receiveAmount, releaseAmount, fee, err = s.AmountCalculator.CalRecvAmt(request.SrcToken, request.DstToken, sendAmount, baseFee, s.Config.LightMM)
 		if err != nil {
 			return &proto.PriceResponse{Err: err.(*proto.Err).ToCommonErr()}, nil
 		}
