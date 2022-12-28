@@ -7,6 +7,9 @@ apikey = ""
 
 [requestsigner]
 chainid = 5
+# keystore(file path) and passphrase is needed, if requestSigner is not lp
+keystore = ""
+passphrase = ""
 
 [mm]
 portListenOn = 6666
@@ -17,3 +20,7 @@ dstTransferPeriod = 600
 reportRetryPeriod = 5
 processPeriod = 5
 tpPolicyList = ["Any2Of=5-USDT,97-USDT","OneOf=5-USDC,97-USDC"]
+# change lightMM to true if it is light mm
+lightMM = false
+# change host to "0.0.0.0" if svc opening to wild web
+host="localhost"
