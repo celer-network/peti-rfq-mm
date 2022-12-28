@@ -31,7 +31,6 @@ func (c *Client) Quote(ctx context.Context, in *proto.QuoteRequest, opts ...grpc
 }
 
 func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (response *proto.PriceResponse, err error) {
-	// uncomment it out for easy debugging
 	defer func() {
 		if response.Err == nil {
 			log.Debugf("Price with success, price %s", response.Price.String())
@@ -140,26 +139,17 @@ func (s *Server) Quote(ctx context.Context, request *proto.QuoteRequest) (respon
 	return &proto.QuoteResponse{QuoteSig: eth.Bytes2Hex(sigBytes)}, nil
 }
 
-func (s *Server) Sign(ctx context.Context, request *proto.SignRequest) (*proto.SignResponse, error) {
-	sig, err := s.RequestSigner.Sign(request.GetData())
-	if err != nil {
-		return &proto.SignResponse{
-			Err: err.(*proto.Err).ToCommonErr(),
-		}, nil
-	}
-	return &proto.SignResponse{
-		Sig: sig,
-	}, nil
-}
-
 func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
+	if !s.Config.LightMM {
+		return signQuoteHashArgumentErr("this apii only works for light mm")
+	}
 	dstChainId := request.GetQuote().GetDstChainId()
 	rfqContract, err := s.ChainCaller.GetRfqContract(dstChainId)
 	if err != nil {
 		return signQuoteHashArgumentErr(err.Error())
 	}
 
-	// 0. check quote hash
+	// 0. check quote sig
 	quote := request.Quote
 	quoteHash := quote.GetQuoteHash()
 	if !s.ValidateQuote(quote, eth.Hex2Bytes(request.QuoteSig)) {
@@ -210,12 +200,6 @@ func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHash
 func signQuoteHashArgumentErr(reason string) (*proto.SignQuoteHashResponse, error) {
 	log.Errorln("signQuoteHashArgumentErr:", reason)
 	return &proto.SignQuoteHashResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, reason).ToCommonErr()}, nil
-}
-
-func (s *Server) Verify(ctx context.Context, request *proto.VerifyRequest) (*proto.VerifyResponse, error) {
-	return &proto.VerifyResponse{
-		Verified: s.RequestSigner.Verify(request.GetData(), request.GetSig()),
-	}, nil
 }
 
 func (s *Server) Tokens(ctx context.Context, request *proto.TokensRequest) (*proto.TokensResponse, error) {

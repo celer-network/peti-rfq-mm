@@ -25,8 +25,6 @@ type ApiClient interface {
 	Price(ctx context.Context, in *PriceRequest, opts ...grpc.CallOption) (*PriceResponse, error)
 	Quote(ctx context.Context, in *QuoteRequest, opts ...grpc.CallOption) (*QuoteResponse, error)
 	SignQuoteHash(ctx context.Context, in *SignQuoteHashRequest, opts ...grpc.CallOption) (*SignQuoteHashResponse, error)
-	Sign(ctx context.Context, in *SignRequest, opts ...grpc.CallOption) (*SignResponse, error)
-	Verify(ctx context.Context, in *VerifyRequest, opts ...grpc.CallOption) (*VerifyResponse, error)
 	Tokens(ctx context.Context, in *TokensRequest, opts ...grpc.CallOption) (*TokensResponse, error)
 }
 
@@ -65,24 +63,6 @@ func (c *apiClient) SignQuoteHash(ctx context.Context, in *SignQuoteHashRequest,
 	return out, nil
 }
 
-func (c *apiClient) Sign(ctx context.Context, in *SignRequest, opts ...grpc.CallOption) (*SignResponse, error) {
-	out := new(SignResponse)
-	err := c.cc.Invoke(ctx, "/service.rfqmm.api/Sign", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *apiClient) Verify(ctx context.Context, in *VerifyRequest, opts ...grpc.CallOption) (*VerifyResponse, error) {
-	out := new(VerifyResponse)
-	err := c.cc.Invoke(ctx, "/service.rfqmm.api/Verify", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *apiClient) Tokens(ctx context.Context, in *TokensRequest, opts ...grpc.CallOption) (*TokensResponse, error) {
 	out := new(TokensResponse)
 	err := c.cc.Invoke(ctx, "/service.rfqmm.api/Tokens", in, out, opts...)
@@ -99,8 +79,6 @@ type ApiServer interface {
 	Price(context.Context, *PriceRequest) (*PriceResponse, error)
 	Quote(context.Context, *QuoteRequest) (*QuoteResponse, error)
 	SignQuoteHash(context.Context, *SignQuoteHashRequest) (*SignQuoteHashResponse, error)
-	Sign(context.Context, *SignRequest) (*SignResponse, error)
-	Verify(context.Context, *VerifyRequest) (*VerifyResponse, error)
 	Tokens(context.Context, *TokensRequest) (*TokensResponse, error)
 }
 
@@ -116,12 +94,6 @@ func (UnimplementedApiServer) Quote(context.Context, *QuoteRequest) (*QuoteRespo
 }
 func (UnimplementedApiServer) SignQuoteHash(context.Context, *SignQuoteHashRequest) (*SignQuoteHashResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SignQuoteHash not implemented")
-}
-func (UnimplementedApiServer) Sign(context.Context, *SignRequest) (*SignResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Sign not implemented")
-}
-func (UnimplementedApiServer) Verify(context.Context, *VerifyRequest) (*VerifyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Verify not implemented")
 }
 func (UnimplementedApiServer) Tokens(context.Context, *TokensRequest) (*TokensResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Tokens not implemented")
@@ -192,42 +164,6 @@ func _Api_SignQuoteHash_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Api_Sign_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SignRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApiServer).Sign(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/service.rfqmm.api/Sign",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApiServer).Sign(ctx, req.(*SignRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Api_Verify_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(VerifyRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApiServer).Verify(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/service.rfqmm.api/Verify",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApiServer).Verify(ctx, req.(*VerifyRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Api_Tokens_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TokensRequest)
 	if err := dec(in); err != nil {
@@ -264,14 +200,6 @@ var Api_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SignQuoteHash",
 			Handler:    _Api_SignQuoteHash_Handler,
-		},
-		{
-			MethodName: "Sign",
-			Handler:    _Api_Sign_Handler,
-		},
-		{
-			MethodName: "Verify",
-			Handler:    _Api_Verify_Handler,
 		},
 		{
 			MethodName: "Tokens",

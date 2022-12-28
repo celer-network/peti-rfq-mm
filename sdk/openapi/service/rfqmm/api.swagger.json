@@ -80,38 +80,6 @@
         ]
       }
     },
-    "/v1/rfqmm/sign": {
-      "post": {
-        "operationId": "api_Sign",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/rfqmmSignResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/rfqmmSignRequest"
-            }
-          }
-        ],
-        "tags": [
-          "api"
-        ]
-      }
-    },
     "/v1/rfqmm/signQuoteHash": {
       "post": {
         "operationId": "api_SignQuoteHash",
@@ -168,38 +136,6 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/rfqmmTokensRequest"
-            }
-          }
-        ],
-        "tags": [
-          "api"
-        ]
-      }
-    },
-    "/v1/rfqmm/verify": {
-      "post": {
-        "operationId": "api_Verify",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/rfqmmVerifyResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/rfqmmVerifyRequest"
             }
           }
         ],
@@ -388,27 +324,6 @@
         }
       }
     },
-    "rfqmmSignRequest": {
-      "type": "object",
-      "properties": {
-        "data": {
-          "type": "string",
-          "format": "byte"
-        }
-      }
-    },
-    "rfqmmSignResponse": {
-      "type": "object",
-      "properties": {
-        "err": {
-          "$ref": "#/definitions/commonErr"
-        },
-        "sig": {
-          "type": "string",
-          "format": "byte"
-        }
-      }
-    },
     "rfqmmTokensRequest": {
       "type": "object"
     },
@@ -423,30 +338,6 @@
           "items": {
             "$ref": "#/definitions/commonToken"
           }
-        }
-      }
-    },
-    "rfqmmVerifyRequest": {
-      "type": "object",
-      "properties": {
-        "data": {
-          "type": "string",
-          "format": "byte"
-        },
-        "sig": {
-          "type": "string",
-          "format": "byte"
-        }
-      }
-    },
-    "rfqmmVerifyResponse": {
-      "type": "object",
-      "properties": {
-        "err": {
-          "$ref": "#/definitions/commonErr"
-        },
-        "verified": {
-          "type": "boolean"
         }
       }
     },

@@ -65,7 +65,6 @@ type ServerConfig struct {
 	LightMM bool
 	// if not set, will use localhost
 	Host string
-	Port string
 }
 
 func (config *ServerConfig) clean() {
