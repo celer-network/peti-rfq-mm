@@ -14,6 +14,7 @@ This document describes the functions and operations of the market maker (MM), w
     - [SrcDeposit](#srcdeposit)
     - [DstTransfer](#dsttransfer)
     - [SrcRelease](#srcrelease)
+  - [Relayer](#relayer)
 - [Become an MM](#become-an-mm)
   - [Request for MM qualification](#request-for-mm-qualification)
   - [Run MM application](#run-mm-application)
@@ -21,6 +22,10 @@ This document describes the functions and operations of the market maker (MM), w
   - [Installation](#installation)
   - [Configuration](#configuration)
   - [Running](#running)
+- [Light MM application](#light-mm-application)
+  - [Light MM installation](#light-mm-installation)
+  - [Light MM Configuration](#light-mm-configuration)
+  - [Light MM Running](#light-mm-running)
 - [Customize your own MM application](#customize-your-own-mm-application)
   - [Customize subcomponents](#customize-subcomponents)
   - [Customize order processing](#customize-order-processing)
@@ -144,6 +149,8 @@ During `dstTransfer`,
 * a message would be sent via Message Bus contract, catched by SGN, and co-signed by SGN's validators.
 * certain amount of token Y would be transferred from MM, and transferred to User after the message is successfully sent out.
 
+>NOTE: Light MM can choose to let a central service called relayer to submit tx for him on dst chain.
+
 Once the message has sufficient voting power, RFQ Server can fetch it from SGN and mark the corresponding swap to status
 `OrderStatus.STATUS_DST_TRANSFERRED`. Then the chosen MM will be informed(in a polling way, see [PendingOrders](./sdk.md#func-client-pendingorders))
 that `dstTransfer` is successful, and `srcRelease`is available on chain A to release token. 
@@ -171,7 +178,26 @@ When MM got the proof of order fulfillment, MM can call [srcRelease](https://git
 to release token X on chain A. During `srcRelease`, the proof is verified via MessageBus contract. If all checks are passed,
 the locked token X which was deposited by User would be transferred to MM after deducting RFQ protocol fee. 
 
+>NOTE: Light MM can choose to let a central service called relayer to submit tx for him on src chain.
+
 Then the swap on chain between User and MM is completed.
+
+### Relayer
+Relayer is a central service hosted by Peti protocol to help those MMs who:
+* doesn't want to request rfq server for reporting tokens and getting pending orders
+* doesn't want to send any tx on both of dst and src chain.
+
+As a consequence of that the relayer sends tx for MMs:
+* MM should expose more api in order to finish the whole swap, including an api for signing specific data.
+* Base fees(tx gas cost and message fee) would be charged by Peti protocol instead of MM, and be accumulated in RFQ contract.
+
+Relayer's working mechanism is very simple and is based on MM's signature verification. Instead of directly sending tokens
+to User, MM should sign the quote's hash to express that he allows a third party to transfer token from his address to user.
+Then relayer can take MM's sig and call RFQ contract at `dstTransferWithSig`, where MM's signature is verified and tokens
+are transferred from MM to User. 
+
+Relayer would help release token on src chain for MM as well. This would require nothing more, because `srcRelease` is 
+callable for anyone by design. And tokens will only be released to MM's address no matter who call `srcRelease`.
 
 ## Become an MM
 
@@ -179,7 +205,9 @@ Then the swap on chain between User and MM is completed.
 An API key is needed for an MM to use RFQ Server's services. Contact us for requesting an API key.
 
 ### Run MM application
-For default MM application, see the guide at [Running](#running).
+For default MM application, see the guide at [Default MM Application](#default-mm-application).
+
+For light MM application, see the guide at [Light MM Application](#light-mm-application).
 
 For customized MM application, run it as you preferred.
 
@@ -355,6 +383,9 @@ apikey = "<your-api-key>"
 [requestsigner]
 # indicates which chain's signer will be used as request signer
 chainid = 5
+# Optional. if keystore(file path) is not empty, then the address denoted by the keystore will be used as request signer.
+keystore = ""
+passphrase = ""
 
 [mm]
 # token pair policy list indicates from which token to which token the mm is interested in
@@ -370,6 +401,10 @@ dstTransferPeriod = 600
 reportRetryPeriod = 5
 # time interval for getting and processing pending orders from rfq server
 processPeriod = 5
+# indicates whether this mm is light versioned
+lightMM = false
+# change host to "0.0.0.0" in need
+host="localhost"
 ```
 Token pair policy format can be found in [SDK doc](./sdk.md#func-defaultliquidityprovider-setuptokenpairs).
 
@@ -424,6 +459,29 @@ sudo systemctl start peti-rfq-mm
 // Check if logs look ok
 tail -f -n30 /var/log/peti-rfq-mm/app/<log-file-with-start-time>.log
 ```
+
+## Light MM application
+
+The difference between Light MM and Default MM:
+* Light MM will not actively send any request to RFQ server.
+* Light MM will serve more api request.
+* Light MM will not send any tx on chain by himself. Tx for `dstTransfer` and `srcRelease` will be sent by Relayer.
+* Light MM will not charge tx gas cost and message fee. It will charged by Peti protocol.
+
+### Light MM Installation
+
+See [installation](#installation).
+
+### Light MM Configuration
+
+Follow the [configuration](#configuration) of Default MM, and make following changes:
+* Set `lightMM` in `mm.toml` to `true`
+* (In need) If request signer is different with liquidity provider, then liquidity provider is required to call 
+`RegisterAllowedSigner` at RFQ contract to make request signer's signature valid.
+
+### Light MM Running
+
+See [running](#running).
 
 ## Customize your own MM application
 
