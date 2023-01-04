@@ -19,7 +19,7 @@ type DefaultRequestSigner struct {
 	Address eth.Addr
 }
 
-func NewRequestSigner(config *RequestSignerConfig) RequestSigner {
+func NewRequestSigner(config *RequestSignerConfig) *DefaultRequestSigner {
 	signer, addr, err := createSigner(config.Keystore, config.Passphrase, big.NewInt(int64(config.ChainId)))
 	if err != nil {
 		panic(err)
