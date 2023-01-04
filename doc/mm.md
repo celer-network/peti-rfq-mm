@@ -469,7 +469,10 @@ The difference between Light MM and Default MM:
 
 ### Light MM Installation
 
-See [installation](#installation).
+See [installation](#installation). 
+
+Before building, switch to `light-mm` branch. If this branch has already been merged to `main`, then the switch operation
+is not needed.
 
 ### Light MM Configuration
 
