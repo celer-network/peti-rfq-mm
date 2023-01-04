@@ -604,8 +604,8 @@ RFQ Server URL: `cbridge-v2-test.celer.network:9094`
 
 #### Contract Address
 RFQ contract
-* Goerli: [0x60CD75Ce8cB1e9C22efB56eB26E3DCf56ee8e354](https://goerli.etherscan.io/address/0x60CD75Ce8cB1e9C22efB56eB26E3DCf56ee8e354)
-* BSC Testnet: [0xB09d71298d807575B882e333548F30D887b57b54](https://testnet.bscscan.com/address/0xB09d71298d807575B882e333548F30D887b57b54)
+* Goerli: [0xfF3cf572D591391935EF45F379C6D83182Feff5C](https://goerli.etherscan.io/address/0xfF3cf572D591391935EF45F379C6D83182Feff5C)
+* BSC Testnet: [0xdc23f4F3dFA283eD56F84d40F5AdE69dF16ec32E](https://testnet.bscscan.com/address/0xdc23f4F3dFA283eD56F84d40F5AdE69dF16ec32E)
 
 Wrapped native contract
 * Goerli: [0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6](https://goerli.etherscan.io/address/0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6)
