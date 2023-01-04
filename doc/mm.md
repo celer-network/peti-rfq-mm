@@ -70,10 +70,9 @@ fulfill this swap. Then RFQ Server will send [Price request](./sdk.md#message-pr
 3. MM got the price request from RFQ Server, and calculate how much token Y on chain B he would like to pay for exchanging
 token X on chain A, according to his fee strategy. Then MM will return his price response to RFQ Server along with his
 signature of this price response and a period for this price to be valid.
-4. RFQ Server collects price responses from available MMs and chooses only one MM for taking this swap order. The MM of
-which price response has the highest amount of token Y on chain B will be chosen by RFQ Server. Then the best price response
+4. RFQ Server collects price responses from available MMs and chooses only one MM for taking this swap order. **The MM of 
+which price response has the highest amount of token Y on chain B will be chosen by RFQ Server.** Then the best price response
 will be returned to User as the requested quotation of his possible swap.
-    >NOTE.There is no chance for an MM with minor price to receive quote request from RFQ Server.
 5. If User accepts this quotation, he needs to confirm it through RFQ Server.
 6. When User confirms the quotation, RFQ Server will send [Quote request](./sdk.md#message-quoterequest) to the chosen MM.
 Quote request includes the signature produced by the MM during step 3, a suggested SrcDeadline for User by which User should finish
@@ -476,6 +475,8 @@ See [installation](#installation).
 
 Follow the [configuration](#configuration) of Default MM, and make following changes:
 * Set `lightMM` in `mm.toml` to `true`
+* `rfqserver` in `mm.tonl` is no longer needed
+* `fee.dstgascost`, `fee.srcgascost` and `fee.gasprices` in `fee.toml` are no longer needed
 * (In need) If request signer is different with liquidity provider, then liquidity provider is required to call 
 `RegisterAllowedSigner` at RFQ contract to make request signer's signature valid.
 
@@ -603,8 +604,8 @@ RFQ Server URL: `cbridge-v2-test.celer.network:9094`
 
 #### Contract Address
 RFQ contract
-* Goerli: [0x60CD75Ce8cB1e9C22efB56eB26E3DCf56ee8e354](https://goerli.etherscan.io/address/0x60CD75Ce8cB1e9C22efB56eB26E3DCf56ee8e354)
-* BSC Testnet: [0xB09d71298d807575B882e333548F30D887b57b54](https://testnet.bscscan.com/address/0xB09d71298d807575B882e333548F30D887b57b54)
+* Goerli: [0xfF3cf572D591391935EF45F379C6D83182Feff5C](https://goerli.etherscan.io/address/0xfF3cf572D591391935EF45F379C6D83182Feff5C)
+* BSC Testnet: [0xdc23f4F3dFA283eD56F84d40F5AdE69dF16ec32E](https://testnet.bscscan.com/address/0xdc23f4F3dFA283eD56F84d40F5AdE69dF16ec32E)
 
 Wrapped native contract
 * Goerli: [0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6](https://goerli.etherscan.io/address/0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6)
