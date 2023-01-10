@@ -20,6 +20,36 @@ service api {
       body: "*"
     };
   };
+  rpc SignQuoteHash(SignQuoteHashRequest) returns (SignQuoteHashResponse) {
+    option (google.api.http) = {
+      post: "/v1/rfqmm/signQuoteHash"
+      body: "*"
+    };
+  };
+  rpc Tokens(TokensRequest) returns (TokensResponse) {
+    option (google.api.http) = {
+      post: "/v1/rfqmm/tokens"
+      body: "*"
+    };
+  };
+}
+message SignQuoteHashRequest {
+  Quote quote = 1;
+  string src_deposit_tx_hash = 2;
+  string quote_sig = 3;
+}
+message SignQuoteHashResponse {
+  common.Err err = 1;
+  bytes sig = 2;
+}
+
+message TokensRequest {
+
+}
+
+message TokensResponse {
+  common.Err err = 1;
+  repeated common.Token tokens = 2;
 }
 
 message PriceRequest {
@@ -29,6 +59,8 @@ message PriceRequest {
   string dst_amount = 4;
   // indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)
   bool dst_native = 5;
+  // replace fixed_fee in configuration
+  string base_fee = 6;
 }
 
 message PriceResponse {
@@ -96,13 +128,13 @@ message Quote {
   // nonce that is determined by the server that is used to dedup quotes
   uint64 nonce = 9;
   // sender of the src tx (msg.sender). it's also the user who deposits the src fund
-  string sender = 10; 
+  string sender = 10;
   // the receiver of the token on the dst chain
-  string receiver = 11; 
+  string receiver = 11;
   // the receiver of the refund (if any) on the src chain
-  string refund_to = 12; 
+  string refund_to = 12;
   // the address of the liquidity provider who's going to transfer fund to the user on the dst chain
-  string mm_addr = 13; 
+  string mm_addr = 13;
 }
 
 enum ErrCode {

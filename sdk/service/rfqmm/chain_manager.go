@@ -99,6 +99,14 @@ func (cm *ChainManager) GetChain(chainId uint64) (*Chain, error) {
 
 var _ ChainQuerier = &ChainManager{}
 
+func (cm *ChainManager) GetRfqContract(chainId uint64) (eth.Addr, error) {
+	chain, err := cm.GetChain(chainId)
+	if err != nil {
+		return eth.ZeroAddr, err
+	}
+	return chain.RfqAddress, nil
+}
+
 func (cm *ChainManager) GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error) {
 	chain, err := cm.GetChain(srcChainId)
 	if err != nil {

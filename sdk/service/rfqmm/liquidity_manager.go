@@ -448,27 +448,6 @@ func (lp *LiqProvider) getLiqNeedApprove() ([]*common.Token, []*big.Int) {
 	return tokens, amounts
 }
 
-var _ RequestSigner = &LiqProvider{}
-
-func (lp *LiqProvider) Sign(data []byte) ([]byte, error) {
-	sig, err := lp.signer.SignEthMessage(data)
-	if err != nil {
-		return nil, proto.NewErr(proto.ErrCode_ERROR_REQUEST_SIGNER, err.Error())
-	}
-	return sig, nil
-}
-
-func (lp *LiqProvider) Verify(data, sig []byte) bool {
-	addr, err := ethutils.RecoverSigner(data, sig)
-	if err != nil {
-		return false
-	}
-	if lp.address != addr {
-		return false
-	}
-	return true
-}
-
 type Liquidity struct {
 	amount     *big.Int
 	reserved   *big.Int

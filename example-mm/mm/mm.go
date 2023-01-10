@@ -19,7 +19,7 @@ const (
 	PriceProviderUrl = "priceprovider.url"
 	RfqServerUrl     = "rfqserver.url"
 	RfqServerApikey  = "rfqserver.apikey"
-	RequestSigner    = "requestsigner.chainid"
+	RequestSigner    = "requestsigner"
 	MMConfig         = "mm"
 )
 
@@ -40,8 +40,28 @@ func NewExampleMM() *ExampleMM {
 	lm := rfqmm.NewLiqManager(lpConfig)
 
 	// get a signer from Liquidity Manager by chain id
-	rsChainId := viper.GetUint64(RequestSigner)
-	requestSigner, _ := lm.GetLP(rsChainId)
+	var signerConfig *rfqmm.RequestSignerConfig
+	err = viper.UnmarshalKey(RequestSigner, &signerConfig)
+	if err != nil {
+		log.Fatalf("failed to load signer configs:%v", err)
+		return nil
+	}
+	var requestSigner rfqmm.RequestSigner
+	if signerConfig.Keystore != "" {
+		// use customized signer config
+		requestSigner = rfqmm.NewRequestSigner(signerConfig)
+	} else {
+		// use chain signer
+		rsChainId := signerConfig.ChainId
+		signerAddr, signer, err0 := lm.GetSigner(rsChainId)
+		if err0 != nil {
+			panic(err0)
+		}
+		requestSigner = &rfqmm.DefaultRequestSigner{
+			Signer:  signer,
+			Address: signerAddr,
+		}
+	}
 
 	// new Chain Manager
 	var chainConfig []*rfqmm.RfqMmChainConfig
@@ -80,6 +100,7 @@ func NewExampleMM() *ExampleMM {
 		log.Fatalf("failed to load mm server configs:%v", err)
 		return nil
 	}
+
 	server := rfqmm.NewServer(serverConfig, client, cm, lp, ac, requestSigner)
 
 	return &ExampleMM{

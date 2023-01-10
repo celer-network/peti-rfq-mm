@@ -61,6 +61,10 @@ type ServerConfig struct {
 	TPPolicyList []string
 	// port num that mm would listen on
 	PortListenOn int64
+	// light mm, which needs a relayer to interact with rfq server
+	LightMM bool
+	// if not set, will use localhost
+	Host string
 }
 
 func (config *ServerConfig) clean() {
@@ -90,6 +94,7 @@ func (config *ServerConfig) clean() {
 }
 
 type ChainQuerier interface {
+	GetRfqContract(chainId uint64) (eth.Addr, error)
 	GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
 	GetMsgFee(chainId uint64) (*big.Int, error)
 	GetGasPrice(chainId uint64) (*big.Int, error)
@@ -124,7 +129,7 @@ type LiquidityProvider interface {
 }
 
 type AmountCalculator interface {
-	CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn *big.Int) (recvAmt, releaseAmt, fee *big.Int, err error)
+	CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFee *big.Int, isLightMM bool) (recvAmt, releaseAmt, fee *big.Int, err error)
 	CalSendAmt(tokenIn, tokenOut *common.Token, amountOut *big.Int) (sendAmt, releaseAmt, fee *big.Int, err error)
 }
 
@@ -163,8 +168,12 @@ func NewServer(config *ServerConfig, client *rfqserver.Client, cm ChainQuerier, 
 }
 
 func (s *Server) Serve(ops ...grpc.ServerOption) {
-	log.Infof("Start mm server, listen on port %d", s.Config.PortListenOn)
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", s.Config.PortListenOn))
+	host := s.Config.Host
+	if host == "" {
+		host = "localhost"
+	}
+	log.Infof("Start mm server, listen on %s:%d", host, s.Config.PortListenOn)
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, s.Config.PortListenOn))
 	if err != nil {
 		panic(err)
 	}

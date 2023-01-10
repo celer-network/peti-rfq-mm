@@ -84,8 +84,10 @@ func startCmd() *cobra.Command {
 		Short: "Start example mm",
 		Run: func(cmd *cobra.Command, args []string) {
 			mm := mm.NewExampleMM()
-			mm.ReportConfigs()
-			mm.DefaultProcessOrder()
+			if !mm.Config.LightMM {
+				mm.ReportConfigs()
+				mm.DefaultProcessOrder()
+			}
 			mm.Serve()
 		},
 	}

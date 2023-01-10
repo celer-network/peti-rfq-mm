@@ -2,12 +2,15 @@ package rfqmm
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/celer-network/goutils/log"
+	"github.com/celer-network/peti-rfq-mm/sdk/bindings/rfq"
 	"github.com/celer-network/peti-rfq-mm/sdk/eth"
 	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
+	solsha3 "github.com/miguelmota/go-solidity-sha3"
 	"google.golang.org/grpc"
 )
 
@@ -28,14 +31,13 @@ func (c *Client) Quote(ctx context.Context, in *proto.QuoteRequest, opts ...grpc
 }
 
 func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (response *proto.PriceResponse, err error) {
-	// uncomment it out for easy debugging
-	//defer func() {
-	//	if response.Err == nil {
-	//		log.Infof("Price with success, price %s", response.Price.String())
-	//	} else {
-	//		log.Errorf("Price with failure, err:%s, request %s", response.Err.String(), request.String())
-	//	}
-	//}()
+	defer func() {
+		if response.Err == nil {
+			log.Debugf("Price with success, price %s", response.Price.String())
+		} else {
+			log.Errorf("Price with failure, err:%s, request %s", response.Err.String(), request.String())
+		}
+	}()
 	if ok, reason := validatePriceRequest(request); !ok {
 		return &proto.PriceResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, reason).ToCommonErr()}, nil
 	}
@@ -45,6 +47,7 @@ func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (respon
 	sendAmount := new(big.Int)
 	releaseAmount := new(big.Int)
 	receiveAmount := new(big.Int)
+	baseFee := new(big.Int)
 	fee := new(big.Int)
 	// switch mod, one is sendAmt => receiveAmt, the other one is receiveAmt => sendAmt
 	if request.SrcAmount == "" {
@@ -56,7 +59,8 @@ func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (respon
 		}
 	} else {
 		sendAmount.SetString(request.SrcAmount, 10)
-		receiveAmount, releaseAmount, fee, err = s.AmountCalculator.CalRecvAmt(request.SrcToken, request.DstToken, sendAmount)
+		baseFee.SetString(request.BaseFee, 10)
+		receiveAmount, releaseAmount, fee, err = s.AmountCalculator.CalRecvAmt(request.SrcToken, request.DstToken, sendAmount, baseFee, s.Config.LightMM)
 		if err != nil {
 			return &proto.PriceResponse{Err: err.(*proto.Err).ToCommonErr()}, nil
 		}
@@ -105,19 +109,11 @@ func (s *Server) Quote(ctx context.Context, request *proto.QuoteRequest) (respon
 	}
 	price := request.Price
 	quote := request.Quote
-	srcAmt := price.GetSrcAmt()
 	if !s.RequestSigner.Verify(price.EncodeSignData(), eth.Hex2Bytes(price.Sig)) {
 		return &proto.QuoteResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "invalid sig").ToCommonErr()}, nil
 	}
 	if !quote.ValidateQuoteHash() {
 		return &proto.QuoteResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "invalid quote hash").ToCommonErr()}, nil
-	}
-	rfqFee, err := s.ChainCaller.GetRfqFee(price.GetSrcChainId(), price.GetDstChainId(), srcAmt)
-	if err != nil {
-		return &proto.QuoteResponse{Err: err.(*proto.Err).ToCommonErr()}, nil
-	}
-	if new(big.Int).Sub(srcAmt, rfqFee).Cmp(price.GetSrcReleaseAmt()) == -1 {
-		return &proto.QuoteResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "incorrect src release amount").ToCommonErr()}, nil
 	}
 	dstAmt := price.GetDstAmt()
 	dstTokenAddr := request.Price.DstToken.GetAddr()
@@ -141,6 +137,82 @@ func (s *Server) Quote(ctx context.Context, request *proto.QuoteRequest) (respon
 	//	return &proto.QuoteResponse{Err: err.(*proto.Err).ToCommonErr()}, nil
 	//}
 	return &proto.QuoteResponse{QuoteSig: eth.Bytes2Hex(sigBytes)}, nil
+}
+
+func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
+	if !s.Config.LightMM {
+		return signQuoteHashArgumentErr("this apii only works for light mm")
+	}
+	dstChainId := request.GetQuote().GetDstChainId()
+	rfqContract, err := s.ChainCaller.GetRfqContract(dstChainId)
+	if err != nil {
+		return signQuoteHashArgumentErr(err.Error())
+	}
+
+	// 0. check quote sig
+	quote := request.Quote
+	quoteHash := quote.GetQuoteHash()
+	if !s.ValidateQuote(quote, eth.Hex2Bytes(request.QuoteSig)) {
+		return signQuoteHashArgumentErr(fmt.Sprintf("invalid quote, quoteHash %x", quoteHash))
+	}
+
+	// 1. check dst deadline
+	timestamp := time.Now().Unix()
+	if quote.DstDeadline < timestamp {
+		msg := fmt.Sprintf("SrcDeposited order with hash %x has past dst deadline %s, now is %s.", quoteHash,
+			time.Unix(quote.DstDeadline, 0).Format("2006-01-02 15:04:06"),
+			time.Unix(timestamp, 0).Format("2006-01-02 15:04:06"))
+		return signQuoteHashArgumentErr("invalid dst deadline: " + msg)
+	}
+	// 2. verify tx on src chain
+	ok, err := s.ChainCaller.VerifyRfqEvent(quote.GetSrcChainId(), eth.Hex2Hash(request.SrcDepositTxHash), rfq.EventNameSrcDeposited)
+	if err != nil {
+		return signQuoteHashArgumentErr(fmt.Sprintf("VerifyRfqEvent err:%s, quoteHash %x", err, quoteHash))
+	}
+	if !ok {
+		return signQuoteHashArgumentErr(fmt.Sprintf("the order with hash %x does not pass event verification", quoteHash))
+	}
+	// 3. check quoteHash on src chain
+	statusOnChain, err := s.ChainCaller.GetQuoteStatus(quote.GetSrcChainId(), quoteHash)
+	if err != nil {
+		return signQuoteHashArgumentErr(fmt.Sprintf("GetQuoteStatus err:%s, quoteHash %x", err, quoteHash))
+	}
+	if statusOnChain != rfq.QuoteStatusSrcDeposited {
+		return signQuoteHashArgumentErr(fmt.Sprintf("[Serious] Quote(hash %x) status on src chain is %s, expected %s", quoteHash, rfq.GetQuoteStatusName(statusOnChain), rfq.GetQuoteStatusName(rfq.QuoteStatusSrcDeposited)))
+	}
+
+	data := EncodeDataToSign(dstChainId, rfqContract, quoteHash)
+	sig, err := s.RequestSigner.Sign(data)
+	if err != nil {
+		return &proto.SignQuoteHashResponse{
+			Err: err.(*proto.Err).ToCommonErr(),
+		}, nil
+	}
+	if sig[64] <= 1 {
+		// Use 27/28 for v to be compatible with openzeppelin ECDSA lib
+		sig[64] = sig[64] + 27
+	}
+	return &proto.SignQuoteHashResponse{
+		Sig: sig,
+	}, nil
+}
+
+func signQuoteHashArgumentErr(reason string) (*proto.SignQuoteHashResponse, error) {
+	log.Errorln("signQuoteHashArgumentErr:", reason)
+	return &proto.SignQuoteHashResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, reason).ToCommonErr()}, nil
+}
+
+func (s *Server) Tokens(ctx context.Context, request *proto.TokensRequest) (*proto.TokensResponse, error) {
+	return &proto.TokensResponse{
+		Tokens: s.LiquidityProvider.GetTokens(),
+	}, nil
+}
+
+func EncodeDataToSign(dstChainId uint64, dstAddr eth.Addr, data eth.Hash) []byte {
+	return solsha3.Pack(
+		[]string{"uint256", "address", "string", "bytes32"},
+		[]interface{}{new(big.Int).SetUint64(dstChainId), dstAddr, "AllowedTransfer", data},
+	)
 }
 
 func validatePriceRequest(request *proto.PriceRequest) (bool, string) {

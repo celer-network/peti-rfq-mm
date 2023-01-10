@@ -79,6 +79,70 @@
           "api"
         ]
       }
+    },
+    "/v1/rfqmm/signQuoteHash": {
+      "post": {
+        "operationId": "api_SignQuoteHash",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/rfqmmSignQuoteHashResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/rfqmmSignQuoteHashRequest"
+            }
+          }
+        ],
+        "tags": [
+          "api"
+        ]
+      }
+    },
+    "/v1/rfqmm/tokens": {
+      "post": {
+        "operationId": "api_Tokens",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/rfqmmTokensResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/rfqmmTokensRequest"
+            }
+          }
+        ],
+        "tags": [
+          "api"
+        ]
+      }
     }
   },
   "definitions": {
@@ -234,6 +298,49 @@
       },
       "title": "some of the fields map to the Quote struct in the RFQ contract"
     },
+    "rfqmmSignQuoteHashRequest": {
+      "type": "object",
+      "properties": {
+        "quote": {
+          "$ref": "#/definitions/rfqmmQuote"
+        },
+        "srcDepositTxHash": {
+          "type": "string"
+        },
+        "quoteSig": {
+          "type": "string"
+        }
+      }
+    },
+    "rfqmmSignQuoteHashResponse": {
+      "type": "object",
+      "properties": {
+        "err": {
+          "$ref": "#/definitions/commonErr"
+        },
+        "sig": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "rfqmmTokensRequest": {
+      "type": "object"
+    },
+    "rfqmmTokensResponse": {
+      "type": "object",
+      "properties": {
+        "err": {
+          "$ref": "#/definitions/commonErr"
+        },
+        "tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/commonToken"
+          }
+        }
+      }
+    },
     "rpcStatus": {
       "type": "object",
       "properties": {
@@ -270,6 +377,10 @@
         "dstNative": {
           "type": "boolean",
           "title": "indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)"
+        },
+        "baseFee": {
+          "type": "string",
+          "title": "replace fixed_fee in configuration"
         }
       }
     },
