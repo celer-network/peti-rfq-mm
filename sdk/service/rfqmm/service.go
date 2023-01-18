@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
@@ -16,7 +17,9 @@ import (
 	rfqserver "github.com/celer-network/peti-rfq-mm/sdk/service/rfq"
 	rfqproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
 	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -25,6 +28,7 @@ const (
 	DefaultPriceValidPeriod  int64 = 300
 	DefaultDstTransferPeriod int64 = 3000
 	DefaultPortListenOn      int64 = 5555
+	DefaultGrpcGatewayPort   int64 = 6666
 )
 
 type Client struct {
@@ -60,7 +64,8 @@ type ServerConfig struct {
 	// token pair policy list
 	TPPolicyList []string
 	// port num that mm would listen on
-	PortListenOn int64
+	PortListenOn    int64
+	GrpcGatewayPort int64
 }
 
 func (config *ServerConfig) clean() {
@@ -86,6 +91,10 @@ func (config *ServerConfig) clean() {
 	if config.PortListenOn == 0 {
 		config.PortListenOn = DefaultPortListenOn
 		log.Debugf("Got 0 PortListenOn, use default value(%d) instead.", DefaultPortListenOn)
+	}
+	if config.GrpcGatewayPort == 0 {
+		config.GrpcGatewayPort = DefaultGrpcGatewayPort
+		log.Debugf("Got 0 GrpcGatewayPort, use default value(%d) instead.", DefaultGrpcGatewayPort)
 	}
 }
 
@@ -163,6 +172,11 @@ func NewServer(config *ServerConfig, client *rfqserver.Client, cm ChainQuerier, 
 }
 
 func (s *Server) Serve(ops ...grpc.ServerOption) {
+	go s.startGrpc(ops...)
+	s.startGrpcGateway() // blocking
+}
+
+func (s *Server) startGrpc(ops ...grpc.ServerOption) {
 	log.Infof("Start mm server, listen on port %d", s.Config.PortListenOn)
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", s.Config.PortListenOn))
 	if err != nil {
@@ -170,7 +184,31 @@ func (s *Server) Serve(ops ...grpc.ServerOption) {
 	}
 	grpcServer := grpc.NewServer(ops...)
 	proto.RegisterApiServer(grpcServer, s)
-	grpcServer.Serve(lis)
+	err = grpcServer.Serve(lis)
+	if err != nil {
+		log.Fatalln("failed to start grpc", err)
+	}
+}
+
+func (s *Server) startGrpcGateway() {
+	log.Infoln(fmt.Sprintf("starting grpc gateway server at port %d", s.Config.GrpcGatewayPort))
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	endpoint := fmt.Sprintf("localhost:%d", s.Config.PortListenOn)
+
+	err := proto.RegisterApiHandlerFromEndpoint(ctx, mux, endpoint, opts)
+	if err != nil {
+		log.Fatalln("failed to register web handler from endpoint", err)
+	}
+
+	err = http.ListenAndServe(fmt.Sprintf(":%d", s.Config.GrpcGatewayPort), mux)
+	if err != nil {
+		log.Fatalln("grpc gateway crashed", err)
+	}
 }
 
 func (s *Server) ReportConfigs() {
