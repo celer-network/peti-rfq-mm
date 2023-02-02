@@ -27,7 +27,7 @@ const (
 	DefaultProcessPeriod     int64 = 5
 	DefaultPriceValidPeriod  int64 = 300
 	DefaultDstTransferPeriod int64 = 3000
-	DefaultPortListenOn      int64 = 5555
+	DefaultGrpcPort          int64 = 5555
 	DefaultGrpcGatewayPort   int64 = 6666
 )
 
@@ -94,8 +94,8 @@ func (config *ServerConfig) clean() {
 		log.Debugf("No token pair policy was given.")
 	}
 	if config.GrpcPort == 0 {
-		config.GrpcPort = DefaultPortListenOn
-		log.Debugf("Got 0 PortListenOn, use default value(%d) instead.", DefaultPortListenOn)
+		config.GrpcPort = DefaultGrpcPort
+		log.Debugf("Got 0 GrpcPort, use default value(%d) instead.", DefaultGrpcPort)
 	}
 	if config.GrpcGatewayPort == 0 {
 		config.GrpcGatewayPort = DefaultGrpcGatewayPort

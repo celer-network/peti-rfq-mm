@@ -389,8 +389,10 @@ passphrase = ""
 [mm]
 # token pair policy list indicates from which token to which token the mm is interested in
 tpPolicyList = ["All"]
-# port that mm listens on
-portListenOn = 6666
+# grpc port that mm listens on
+grpcPort = 5555
+# restful api port that mm listens on
+grpcGatewayPort=6666
 # all periods' unit is second
 # indicates the period during which a price response from this mm is valid
 priceValidPeriod = 300
@@ -506,7 +508,7 @@ to:
 At last, do not forget to start serving requests, for example:
 ```go
 yourMMApp := NewYourMMApp(...)
-listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d",host, port))
 if err != nil {
 	panic(err)
 }
@@ -587,8 +589,9 @@ func (mm *YourMMApp) Quote(ctx context.Context, request *proto.QuoteRequest) (re
     panic()
 }
 func (mm *YourMMApp) Serve(ops ...grpc.ServerOption) {
-    port := mm.Server.Config.PortListenOn
-    listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+    port := mm.Server.Config.GrpcPort
+    host := mm.Server.Config.Host
+    listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
     if err != nil {
         panic(err)
     }
