@@ -17,7 +17,7 @@ import (
 	rfqserver "github.com/celer-network/peti-rfq-mm/sdk/service/rfq"
 	rfqproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
 	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -64,8 +64,8 @@ type ServerConfig struct {
 	// token pair policy list
 	TPPolicyList []string
 	// port num that mm grpc service would listen on
-	PortListenOn    int64
-  // port num that mm restful api would listen on
+	GrpcPort int64
+	// port num that mm restful api would listen on
 	GrpcGatewayPort int64
 	// light mm, which needs a relayer to interact with rfq server
 	LightMM bool
@@ -93,8 +93,8 @@ func (config *ServerConfig) clean() {
 	if len(config.TPPolicyList) == 0 {
 		log.Debugf("No token pair policy was given.")
 	}
-	if config.PortListenOn == 0 {
-		config.PortListenOn = DefaultPortListenOn
+	if config.GrpcPort == 0 {
+		config.GrpcPort = DefaultPortListenOn
 		log.Debugf("Got 0 PortListenOn, use default value(%d) instead.", DefaultPortListenOn)
 	}
 	if config.GrpcGatewayPort == 0 {
@@ -187,8 +187,8 @@ func (s *Server) startGrpc(ops ...grpc.ServerOption) {
 	if host == "" {
 		host = "localhost"
 	}
-	log.Infof("Start mm server, listen on %s:%d", host, s.Config.PortListenOn)
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, s.Config.PortListenOn))
+	log.Infof("Start mm server, listen on %s:%d", host, s.Config.GrpcPort)
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, s.Config.GrpcPort))
 
 	if err != nil {
 		panic(err)
@@ -209,7 +209,7 @@ func (s *Server) startGrpcGateway() {
 
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	endpoint := fmt.Sprintf("localhost:%d", s.Config.PortListenOn)
+	endpoint := fmt.Sprintf("localhost:%d", s.Config.GrpcPort)
 
 	err := proto.RegisterApiHandlerFromEndpoint(ctx, mux, endpoint, opts)
 	if err != nil {
