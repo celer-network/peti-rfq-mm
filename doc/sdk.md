@@ -403,7 +403,7 @@ type ServerConfig struct {
     // grpc port num that mm would listen on
     GrpcPort int64
     // restful api port num that mm would listen on
-    grpcGatewayPort int64
+    GrpcGatewayPort int64
 }
 func NewServer(config *ServerConfig, client *rfq.Client, cm ChainQuerier, lp LiquidityProvider, ac AmountCalculator, rs RequestSigner) *Server
 ```
