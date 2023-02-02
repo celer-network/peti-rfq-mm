@@ -174,6 +174,9 @@ func (d *LiqManager) GetSigner(chainId uint64) (eth.Addr, ethutils.Signer, error
 	if err != nil {
 		return eth.ZeroAddr, nil, err
 	}
+	if lp.signer == nil {
+		return lp.address, nil, fmt.Errorf("lp on chain %d is contract", chainId)
+	}
 	return lp.address, lp.signer, nil
 }
 
@@ -200,6 +203,7 @@ type LiqOpDetail struct {
 
 type LPConfig struct {
 	ChainId       uint64
+	Address       string
 	Keystore      string
 	Passphrase    string
 	Liqs          []*LiquidityConfig
@@ -216,10 +220,21 @@ type LiquidityConfig struct {
 }
 
 func NewLiqProvider(config *LPConfig) *LiqProvider {
-	signer, addr, err := createSigner(config.Keystore, config.Passphrase, big.NewInt(int64(config.ChainId)))
-	if err != nil {
-		panic(err)
+	// contract
+	lpAddr := eth.Hex2Addr(config.Address)
+	var signer ethutils.Signer
+	// EOA
+	if config.Keystore != "" {
+		s, addr, err := createSigner(config.Keystore, config.Passphrase, big.NewInt(int64(config.ChainId)))
+		if err != nil {
+			panic(err)
+		}
+		if addr != lpAddr {
+			panic(fmt.Sprintf("lp address %x mismatches address from keystore %x", lpAddr, addr))
+		}
+		signer = s
 	}
+
 	liqs := make(map[string]*Liquidity)
 	for _, liq := range config.Liqs {
 		amount, _ := new(big.Int).SetString(liq.Amount, 10)
@@ -238,7 +253,7 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 	return &LiqProvider{
 		signer:        signer,
 		chainId:       config.ChainId,
-		address:       addr,
+		address:       lpAddr,
 		liqs:          liqs,
 		liqOps:        make([]*LiqOpDetail, 0),
 		hashToUntil:   make(map[eth.Hash]int64),

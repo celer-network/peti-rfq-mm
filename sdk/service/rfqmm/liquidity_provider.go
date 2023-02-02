@@ -47,7 +47,11 @@ func NewDefaultLiquidityProvider(cm *ChainManager, lm *LiqManager) *DefaultLiqui
 	}
 	// construct transactor for each chain
 	for _, chainId := range lm.GetChains() {
-		addr, signer, _ := lm.GetSigner(chainId)
+		addr, signer, err := lm.GetSigner(chainId)
+		if err != nil {
+			log.Warnf("GetSigner err:%s. Omit this warning if lp is a contract", err)
+			continue
+		}
 		chain, err := cm.GetChain(chainId)
 		if err != nil {
 			log.Errorf("GetChain err:%s", err)
