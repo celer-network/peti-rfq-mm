@@ -61,6 +61,10 @@ type ServerConfig struct {
 	TPPolicyList []string
 	// port num that mm would listen on
 	PortListenOn int64
+	// light mm, which needs a relayer to interact with rfq server
+	LightMM bool
+	// if not set, will use localhost
+	Host string
 }
 
 func (config *ServerConfig) clean() {
@@ -90,6 +94,7 @@ func (config *ServerConfig) clean() {
 }
 
 type ChainQuerier interface {
+	GetRfqContract(chainId uint64) (eth.Addr, error)
 	GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
 	GetMsgFee(chainId uint64) (*big.Int, error)
 	GetGasPrice(chainId uint64) (*big.Int, error)
@@ -124,7 +129,7 @@ type LiquidityProvider interface {
 }
 
 type AmountCalculator interface {
-	CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn *big.Int) (recvAmt, releaseAmt, fee *big.Int, err error)
+	CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFee *big.Int, isLightMM bool) (recvAmt, releaseAmt, fee *big.Int, err error)
 	CalSendAmt(tokenIn, tokenOut *common.Token, amountOut *big.Int) (sendAmt, releaseAmt, fee *big.Int, err error)
 }
 
@@ -163,8 +168,12 @@ func NewServer(config *ServerConfig, client *rfqserver.Client, cm ChainQuerier, 
 }
 
 func (s *Server) Serve(ops ...grpc.ServerOption) {
-	log.Infof("Start mm server, listen on port %d", s.Config.PortListenOn)
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", s.Config.PortListenOn))
+	host := s.Config.Host
+	if host == "" {
+		host = "localhost"
+	}
+	log.Infof("Start mm server, listen on %s:%d", host, s.Config.PortListenOn)
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, s.Config.PortListenOn))
 	if err != nil {
 		panic(err)
 	}
@@ -249,58 +258,26 @@ func (s *Server) processOrders(orders []*rfqproto.PendingOrder) {
 
 func (s *Server) processOrder(pendingOrder *rfqproto.PendingOrder) {
 	quote := pendingOrder.Quote
-	quoteHash := quote.GetQuoteHash()
-	if !s.ValidateQuote(quote, eth.Hex2Bytes(pendingOrder.QuoteSig)) {
-		log.Errorf("Invalid quote, quoteHash %x", quoteHash)
+	err := s.checkQuoteSig(quote, pendingOrder.QuoteSig)
+	if err != nil {
 		return
 	}
+	quoteHash := quote.GetQuoteHash()
 	switch pendingOrder.Status {
 	case rfqproto.OrderStatus_STATUS_SRC_DEPOSITED:
-		// 1. check dst deadline
-		timestamp := time.Now().Unix()
-		if quote.DstDeadline < timestamp {
-			log.Infof("SrcDeposited order with hash %x has past dst deadline %s, now is %s.", quoteHash,
-				time.Unix(quote.DstDeadline, 0).Format("2006-01-02 15:04:06"),
-				time.Unix(timestamp, 0).Format("2006-01-02 15:04:06"))
-			//s.unfreeze(quote)
-			// same chain swap, update status to refund initiated
-			if quote.GetSrcChainId() == quote.GetDstChainId() {
-				s.updateOrder(quoteHash, rfqproto.OrderStatus_STATUS_REFUND_INITIATED, "")
-			}
-			return
-		}
-		// 2. verify tx on src chain
-		ok, err := s.ChainCaller.VerifyRfqEvent(quote.GetSrcChainId(), eth.Hex2Hash(pendingOrder.SrcDepositTxHash), rfq.EventNameSrcDeposited)
+		// check quote
+		err = s.checkQuote(quote, pendingOrder.SrcDepositTxHash, true)
 		if err != nil {
-			log.Warnf("VerifyRfqEvent err:%s, quoteHash %x, srcChainId %d", err, quoteHash, quote.GetSrcChainId())
 			return
 		}
-		if !ok {
-			log.Errorf("[Serious] Quote(hash %x) with status SRC_DEPOSITED does not pass event verification on src chain %d", quoteHash, quote.GetSrcChainId())
-			//s.unfreeze(quote)
-			s.StopProcessing(fmt.Sprintf("the order with hash %x does not pass event verification", quoteHash))
-			return
-		}
-		// 3. check quoteHash on src chain
-		statusOnChain, err := s.ChainCaller.GetQuoteStatus(quote.GetSrcChainId(), quoteHash)
-		if err != nil {
-			log.Warnf("GetQuoteStatus err:%s, quoteHash %x, srcChainId %d", err, quoteHash, quote.GetSrcChainId())
-			return
-		}
-		if statusOnChain != rfq.QuoteStatusSrcDeposited {
-			log.Errorf("[Serious] Quote(hash %x) status on src chain %d is %s, expected %s", quoteHash, quote.GetSrcChainId(), rfq.GetQuoteStatusName(statusOnChain), rfq.GetQuoteStatusName(rfq.QuoteStatusSrcDeposited))
-			//s.unfreeze(quote)
-			s.StopProcessing(fmt.Sprintf("the order with hash %x is not truly deposited on src chain while rfq server thought it is", quoteHash))
-			return
-		}
-		// 4. send dst transfer
+		// send dst transfer
 		txHash, err := s.LiquidityProvider.DstTransfer(pendingOrder.DstNative, quote.ToQuoteOnChain())
 		if err != nil {
 			log.Warnf("DstTransfer err:%s, quoteHash %x, dstChainId %d", err, quoteHash, quote.GetDstChainId())
 			return
 		}
-		log.Infof("DstTransfer sent with txHash %x, quoteHash %x, dstChainId %d", txHash, quoteHash, quote.GetDstChainId())
-		// 5. update order's status
+		log.Infof("DstTransfer sent with txHash %x, quoteHash %x", txHash, quoteHash)
+		// update order's status
 		s.updateOrder(quoteHash, rfqproto.OrderStatus_STATUS_MM_DST_EXECUTED, eth.Bytes2Hex(txHash.Bytes()))
 	case rfqproto.OrderStatus_STATUS_DST_TRANSFERRED:
 		// 1. send src release
@@ -313,6 +290,66 @@ func (s *Server) processOrder(pendingOrder *rfqproto.PendingOrder) {
 		// 2. update order's status
 		s.updateOrder(quoteHash, rfqproto.OrderStatus_STATUS_MM_SRC_EXECUTED, eth.Bytes2Hex(txHash.Bytes()))
 	}
+}
+
+func (s *Server) checkQuoteSig(quote *proto.Quote, sig string) (err error) {
+	quoteHash := quote.GetQuoteHash()
+	if !s.ValidateQuote(quote, eth.Hex2Bytes(sig)) {
+		err = fmt.Errorf("invalid quote, quoteHash %x", quoteHash)
+		log.Errorln(err)
+	}
+	return
+}
+
+func (s *Server) checkQuote(quote *proto.Quote, srcDepositTxHash string, processOrder bool) error {
+	quoteHash := quote.GetQuoteHash()
+	// 1. check dst deadline
+	timestamp := time.Now().Unix()
+	if quote.DstDeadline < timestamp {
+		msg := fmt.Sprintf("SrcDeposited order with hash %x has past dst deadline %s, now is %s.", quoteHash,
+			time.Unix(quote.DstDeadline, 0).Format("2006-01-02 15:04:06"),
+			time.Unix(timestamp, 0).Format("2006-01-02 15:04:06"))
+		log.Infoln(msg)
+		//s.unfreeze(quote)
+		// same chain swap, update status to refund initiated
+		if quote.GetSrcChainId() == quote.GetDstChainId() && processOrder {
+			s.updateOrder(quoteHash, rfqproto.OrderStatus_STATUS_REFUND_INITIATED, "")
+		}
+		return fmt.Errorf(msg)
+	}
+	// 2. verify tx on src chain
+	ok, err := s.ChainCaller.VerifyRfqEvent(quote.GetSrcChainId(), eth.Hex2Hash(srcDepositTxHash), rfq.EventNameSrcDeposited)
+	if err != nil {
+		msg := fmt.Sprintf("VerifyRfqEvent err:%s, quoteHash %x", err, quoteHash)
+		log.Warnln(msg)
+		return fmt.Errorf(msg)
+	}
+	if !ok {
+		msg := fmt.Sprintf("[Serious] Quote(hash %x) with status SRC_DEPOSITED does not pass event verification", quoteHash)
+		log.Errorln(msg)
+		//s.unfreeze(quote)
+		if processOrder {
+			s.StopProcessing(fmt.Sprintf("the order with hash %x does not pass event verification", quoteHash))
+		}
+		return fmt.Errorf(msg)
+	}
+	// 3. check quoteHash on src chain
+	statusOnChain, err := s.ChainCaller.GetQuoteStatus(quote.GetSrcChainId(), quoteHash)
+	if err != nil {
+		msg := fmt.Sprintf("GetQuoteStatus err:%s, quoteHash %x", err, quoteHash)
+		log.Errorln(msg)
+		return fmt.Errorf(msg)
+	}
+	if statusOnChain != rfq.QuoteStatusSrcDeposited {
+		msg := fmt.Sprintf("[Serious] Quote(hash %x) status on src chain is %s, expected %s", quoteHash, rfq.GetQuoteStatusName(statusOnChain), rfq.GetQuoteStatusName(rfq.QuoteStatusSrcDeposited))
+		log.Errorln(msg)
+		//s.unfreeze(quote)
+		if processOrder {
+			s.StopProcessing(fmt.Sprintf("the order with hash %x is not truly deposited on src chain while rfq server thought it is", quoteHash))
+		}
+		return fmt.Errorf(msg)
+	}
+	return nil
 }
 
 func (s *Server) ValidateQuote(quote *proto.Quote, sig []byte) bool {
