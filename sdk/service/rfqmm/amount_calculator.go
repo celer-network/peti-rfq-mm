@@ -142,8 +142,8 @@ func (ac *DefaultAmtCalculator) SetMaxFeeUsdValue(maxFeeUsdValue uint64) {
 	//todo
 }
 
-// fixed cost is composed of 1. src gas cost(only cross chain swap) 2. dst gas cost 3. dst msg fee(only cross chain swap)
-func (ac *DefaultAmtCalculator) calFixedCost(tokenIn, tokenOut *common.Token) (fixedCost *big.Int, err error) {
+// base fee is composed of 1. src gas cost(only cross chain swap) 2. dst gas cost 3. dst msg fee(only cross chain swap)
+func (ac *DefaultAmtCalculator) calBaseFee(tokenIn, tokenOut *common.Token) (baseFee *big.Int, err error) {
 	chainIn := tokenIn.ChainId
 	chainOut := tokenOut.ChainId
 	tokenInPrice, err := ac.PriceProvider.GetPrice(tokenIn)
@@ -195,15 +195,23 @@ func (ac *DefaultAmtCalculator) calFixedCost(tokenIn, tokenOut *common.Token) (f
 	// sum all cost
 	if chainIn != chainOut {
 		// all of 3
-		fixedCost = new(big.Int).Add(srcGasCostInIn, dstGasCostInIn)
-		fixedCost.Add(fixedCost, msgFeeInIn)
+		baseFee = new(big.Int).Add(srcGasCostInIn, dstGasCostInIn)
+		baseFee.Add(baseFee, msgFeeInIn)
 	} else {
-		fixedCost = new(big.Int).Set(dstGasCostInIn)
+		baseFee = new(big.Int).Set(dstGasCostInIn)
 	}
 	return
 }
 
-func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFee *big.Int, isLightMM bool) (amountOut, releaseAmt, fee *big.Int, err error) {
+// some notes about amount:
+// fee = baseFee + mmFee (fee is used for statistical analysis)
+// srcAmount - rfqFee - fee = dstAmount
+// for light mm:
+//   srcAmount - rfqFee - baseFee = srcReleaseAmount
+// for default mm:
+//   srcAmount - rfqFee = srcReleaseAmount
+
+func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFeeForLMM *big.Int, isLightMM bool) (amountOut, releaseAmt, fee *big.Int, err error) {
 	tokenInPrice, err := ac.PriceProvider.GetPrice(tokenIn)
 	if err != nil {
 		return
@@ -217,27 +225,32 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 	if err != nil {
 		return
 	}
-	releaseAmt = new(big.Int).Sub(amountIn, rfqFeeAmt)
 
-	// calculate fixed cost, of which unit is src token
-	fixedCost := baseFee
+	// calculate base fee, of which unit is src token
+	baseFeeAmt := new(big.Int).Set(baseFeeForLMM)
 	if !isLightMM {
-		fixedCost, err = ac.calFixedCost(tokenIn, tokenOut)
+		baseFeeAmt, err = ac.calBaseFee(tokenIn, tokenOut)
 		if err != nil {
 			return
 		}
-	} else {
-		releaseAmt = new(big.Int).Sub(releaseAmt, fixedCost)
 	}
 
 	// calculate fee required by mm, of which unit is src token
 	mmFeeAmt := ac.calMmFee(tokenIn, tokenOut, amountIn)
 
-	// calculate total fee, described as a sum of fixed cost and mm fee
-	fee = new(big.Int).Add(mmFeeAmt, fixedCost)
+	// calculate total fee, described as a sum of base fee and mm fee
+	fee = new(big.Int).Add(mmFeeAmt, baseFeeAmt)
+
+	// calculate release amount
+	releaseAmt = new(big.Int).Sub(amountIn, rfqFeeAmt)
+	if isLightMM {
+		releaseAmt = new(big.Int).Sub(releaseAmt, baseFeeAmt)
+	}
 
 	// calculate amount out
-	amountOut = convertAmount(new(big.Int).Sub(releaseAmt, fee), tokenInPrice, tokenOutPrice, tokenOut.Decimals-tokenIn.Decimals)
+	dstTransferAmt := new(big.Int).Sub(amountIn, rfqFeeAmt)
+	dstTransferAmt.Sub(dstTransferAmt, fee)
+	amountOut = convertAmount(dstTransferAmt, tokenInPrice, tokenOutPrice, tokenOut.Decimals-tokenIn.Decimals)
 	return
 }
 
