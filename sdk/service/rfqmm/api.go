@@ -33,7 +33,7 @@ func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (respon
 		if response.Err == nil {
 			log.Debugf("Price with success, price %s", response.Price.String())
 		} else {
-			log.Errorf("Price with failure, err:%s, request %s", response.Err.String(), request.String())
+			log.Debugf("Price with failure, err:%s, request %s", response.Err.String(), request.String())
 		}
 	}()
 	if ok, reason := validatePriceRequest(request); !ok {
@@ -99,7 +99,7 @@ func (s *Server) Quote(ctx context.Context, request *proto.QuoteRequest) (respon
 		if response.Err == nil {
 			log.Infof("Quote with success, quote %s", request.Quote.String())
 		} else {
-			log.Errorf("Quote with failure, err:%s, quote %s", response.Err.String(), request.Quote.String())
+			log.Warnf("Quote with failure, err:%s, quote %s", response.Err.String(), request.Quote.String())
 		}
 	}()
 	if ok, reason := validateQuoteRequest(request); !ok {

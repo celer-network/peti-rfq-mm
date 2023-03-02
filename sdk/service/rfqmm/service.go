@@ -273,7 +273,7 @@ func (s *Server) processOrder(pendingOrder *rfqproto.PendingOrder) {
 		// send dst transfer
 		txHash, err := s.LiquidityProvider.DstTransfer(pendingOrder.DstNative, quote.ToQuoteOnChain())
 		if err != nil {
-			log.Errorf("DstTransfer err:%s, quoteHash %x", err, quoteHash)
+			log.Warnf("DstTransfer err:%s, quoteHash %x, dstChainId %d", err, quoteHash, quote.GetDstChainId())
 			return
 		}
 		log.Infof("DstTransfer sent with txHash %x, quoteHash %x", txHash, quoteHash)
@@ -283,10 +283,10 @@ func (s *Server) processOrder(pendingOrder *rfqproto.PendingOrder) {
 		// 1. send src release
 		txHash, err := s.LiquidityProvider.SrcRelease(quote.ToQuoteOnChain(), pendingOrder.ExecMsgCallData)
 		if err != nil {
-			log.Errorf("SrcRelease err:%s, quoteHash %x", err, quoteHash)
+			log.Warnf("SrcRelease err:%s, quoteHash %x, srcChainId %d", err, quoteHash, quote.GetSrcChainId())
 			return
 		}
-		log.Infof("SrcRelease sent with txHash %x, quoteHash %x", txHash, quoteHash)
+		log.Infof("SrcRelease sent with txHash %x, quoteHash %x, srcChainId %d", txHash, quoteHash, quote.GetSrcChainId())
 		// 2. update order's status
 		s.updateOrder(quoteHash, rfqproto.OrderStatus_STATUS_MM_SRC_EXECUTED, eth.Bytes2Hex(txHash.Bytes()))
 	}
