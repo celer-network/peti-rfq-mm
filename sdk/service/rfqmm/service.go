@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
@@ -16,7 +17,9 @@ import (
 	rfqserver "github.com/celer-network/peti-rfq-mm/sdk/service/rfq"
 	rfqproto "github.com/celer-network/peti-rfq-mm/sdk/service/rfq/proto"
 	"github.com/celer-network/peti-rfq-mm/sdk/service/rfqmm/proto"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -24,7 +27,8 @@ const (
 	DefaultProcessPeriod     int64 = 5
 	DefaultPriceValidPeriod  int64 = 300
 	DefaultDstTransferPeriod int64 = 3000
-	DefaultPortListenOn      int64 = 5555
+	DefaultGrpcPort          int64 = 5555
+	DefaultGrpcGatewayPort   int64 = 6666
 )
 
 type Client struct {
@@ -59,8 +63,10 @@ type ServerConfig struct {
 	DstTransferPeriod int64
 	// token pair policy list
 	TPPolicyList []string
-	// port num that mm would listen on
-	PortListenOn int64
+	// port num that mm grpc service would listen on
+	GrpcPort int64
+	// port num that mm restful api would listen on
+	GrpcGatewayPort int64
 	// light mm, which needs a relayer to interact with rfq server
 	LightMM bool
 	// if not set, will use localhost
@@ -87,9 +93,13 @@ func (config *ServerConfig) clean() {
 	if len(config.TPPolicyList) == 0 {
 		log.Debugf("No token pair policy was given.")
 	}
-	if config.PortListenOn == 0 {
-		config.PortListenOn = DefaultPortListenOn
-		log.Debugf("Got 0 PortListenOn, use default value(%d) instead.", DefaultPortListenOn)
+	if config.GrpcPort == 0 {
+		config.GrpcPort = DefaultGrpcPort
+		log.Debugf("Got 0 GrpcPort, use default value(%d) instead.", DefaultGrpcPort)
+	}
+	if config.GrpcGatewayPort == 0 {
+		config.GrpcGatewayPort = DefaultGrpcGatewayPort
+		log.Debugf("Got 0 GrpcGatewayPort, use default value(%d) instead.", DefaultGrpcGatewayPort)
 	}
 }
 
@@ -168,18 +178,48 @@ func NewServer(config *ServerConfig, client *rfqserver.Client, cm ChainQuerier, 
 }
 
 func (s *Server) Serve(ops ...grpc.ServerOption) {
+	go s.startGrpc(ops...)
+	s.startGrpcGateway() // blocking
+}
+
+func (s *Server) startGrpc(ops ...grpc.ServerOption) {
 	host := s.Config.Host
 	if host == "" {
 		host = "localhost"
 	}
-	log.Infof("Start mm server, listen on %s:%d", host, s.Config.PortListenOn)
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, s.Config.PortListenOn))
+	log.Infof("Start mm server, listen on %s:%d", host, s.Config.GrpcPort)
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, s.Config.GrpcPort))
+
 	if err != nil {
 		panic(err)
 	}
 	grpcServer := grpc.NewServer(ops...)
 	proto.RegisterApiServer(grpcServer, s)
-	grpcServer.Serve(lis)
+	err = grpcServer.Serve(lis)
+	if err != nil {
+		log.Fatalln("failed to start grpc", err)
+	}
+}
+
+func (s *Server) startGrpcGateway() {
+	log.Infoln(fmt.Sprintf("starting grpc gateway server at port %d", s.Config.GrpcGatewayPort))
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	endpoint := fmt.Sprintf("localhost:%d", s.Config.GrpcPort)
+
+	err := proto.RegisterApiHandlerFromEndpoint(ctx, mux, endpoint, opts)
+	if err != nil {
+		log.Fatalln("failed to register web handler from endpoint", err)
+	}
+
+	err = http.ListenAndServe(fmt.Sprintf(":%d", s.Config.GrpcGatewayPort), mux)
+	if err != nil {
+		log.Fatalln("grpc gateway crashed", err)
+	}
 }
 
 func (s *Server) ReportConfigs() {
