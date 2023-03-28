@@ -12,7 +12,8 @@ keystore = ""
 passphrase = ""
 
 [mm]
-portListenOn = 6666
+grpcPort = 5555
+grpcGatewayPort=6666
 # in second
 priceValidPeriod = 300
 dstTransferPeriod = 600

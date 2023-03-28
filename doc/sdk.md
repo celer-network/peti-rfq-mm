@@ -400,8 +400,10 @@ type ServerConfig struct {
     DstTransferPeriod int64
     // token pair policy list
     TPPolicyList []string
-    // port num that mm would listen on
-    PortListenOn int64
+    // grpc port num that mm would listen on
+    GrpcPort int64
+    // restful api port num that mm would listen on
+    GrpcGatewayPort int64
 }
 func NewServer(config *ServerConfig, client *rfq.Client, cm ChainQuerier, lp LiquidityProvider, ac AmountCalculator, rs RequestSigner) *Server
 ```

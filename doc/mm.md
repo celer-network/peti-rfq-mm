@@ -38,7 +38,7 @@ This document describes the functions and operations of the market maker (MM), w
 
 ## RFQ Basics
 
-A successfull RFQ transaction consists two main processes:
+A successful RFQ transaction consists of two main processes:
 
 1. User and MM reach a quote agreement through off-chain communications via an RFQ Server.
 2. User and MM execute the quote by swapping tokens through the RFQ contracts and Celer IM.
@@ -234,7 +234,7 @@ touch config/chain.toml config/lp.toml config/fee.toml config/mm.toml
 // move all used address's keystore file into .peti-rfq-mm/eth-ks/
 mv <path-to-your-eth-keystore-file> eth-ks/<give-a-name>.json
 ```
-The `.peti-rfq-mm` folder's structure will looks like:
+The `.peti-rfq-mm` folder's structure will look like:
 ```
 .peti-rfq-mm/
   - config/
@@ -392,12 +392,14 @@ passphrase = ""
 [mm]
 # token pair policy list indicates from which token to which token the mm is interested in
 tpPolicyList = ["All"]
-# port that mm listens on
-portListenOn = 6666
+# grpc port that mm listens on
+grpcPort = 5555
+# restful api port that mm listens on
+grpcGatewayPort=6666
 # all periods' unit is second
 # indicates the period during which a price response from this mm is valid
 priceValidPeriod = 300
-# indicates the minimum period for this mm to complete transferring on dst chain, couting from the user confirms the quotation
+# indicates the minimum period for this mm to complete transferring on dst chain, counting from the user confirms the quotation
 dstTransferPeriod = 600
 # if faled to report token configs to rfq server, mm will be stucked and retry every <reportperiod> seconds until success.
 reportRetryPeriod = 5
@@ -509,7 +511,7 @@ to:
 At last, do not forget to start serving requests, for example:
 ```go
 yourMMApp := NewYourMMApp(...)
-listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d",host, port))
 if err != nil {
 	panic(err)
 }
@@ -518,7 +520,7 @@ rfqmmproto.RegisterApiServer(grpcServer, yourMMApp)
 grpcServer.Serve(listener)
 ```
 
-But if you think the struture of [Server](./sdk.md#type-server) is ok, then you can only customize its subcomponents that
+But if you think the structure of [Server](./sdk.md#type-server) is ok, then you can only customize its subcomponents that
 you want to change. With this Server, you can still customize how does it serve price&quote requests and process orders.
 
 ### Customize subcomponents
@@ -590,8 +592,9 @@ func (mm *YourMMApp) Quote(ctx context.Context, request *proto.QuoteRequest) (re
     panic()
 }
 func (mm *YourMMApp) Serve(ops ...grpc.ServerOption) {
-    port := mm.Server.Config.PortListenOn
-    listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+    port := mm.Server.Config.GrpcPort
+    host := mm.Server.Config.Host
+    listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
     if err != nil {
         panic(err)
     }
