@@ -286,6 +286,8 @@ Liquidity is configured per chain and per token. An example full configuration o
 ```
 [[lp]]
 chainid = 5
+address = "<lp address>"
+# if this lp is a contract, should keep keystore unset or empty string
 keystore = "./eth-ks/<give-a-name>.json"
 passphrase = "<password-of-your-keystore>"
 # release native token or wrapped native token on this chain, used when the token deposited by User is native token or wrapped native token
@@ -310,6 +312,7 @@ freezetime = 200
 ```
 You can use different account for each chain or just use one account for all chains. `keystore` should set to path of your
 keystore file relative to `.peti-rfq-mm` floder.
+If you're going to use a contract as a liquidity provider, let `keystore` be empty.
 
 For each token, `address`, `symbol`, `decimals` and `freezetime` are required, while `amount` and `approve` are optional.
 

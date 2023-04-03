@@ -1,5 +1,6 @@
 [[lp]]
 chainid = 5
+address = "<address of your test account>"
 keystore = "./eth-ks/<your-test-account>.json"
 passphrase = "<your-password>"
 releasenative = false
@@ -38,15 +39,17 @@ freezetime = 200
 
 [[lp]]
 chainid = 97
-keystore = "./eth-ks/<your-test-account>.json"
-passphrase = "<your-password>"
+address = "<address of your test contract>"
+#for contract lp, no keystore and passphrase
+#keystore =
+#passphrase =
 releasenative = false
 
 [[lp.liqs]]
 address = "0x7d43AABC515C356145049227CeE54B608342c0ad"
 symbol = "USDT"
 #amount = "0"
-#approve = "1000000000000"
+#approve =
 decimals = 6
 # in second
 freezetime = 300
@@ -54,7 +57,7 @@ freezetime = 300
 address = "0x855fC87f7F14Db747ef27603b02bAe579ba947B6"
 symbol = "USDC"
 #amount = "0"
-#approve = "1000000000000"
+#approve =
 decimals = 6
 # in second
 freezetime = 300
@@ -62,7 +65,7 @@ freezetime = 300
 address = "0x5471ea8f739dd37E9B81Be9c5c77754D8AA953E4"
 symbol = "CELR"
 #amount = "0"
-#approve = "1000000000000000000000000"
+#approve =
 decimals = 18
 # in second
 freezetime = 300

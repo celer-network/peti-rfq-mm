@@ -902,6 +902,7 @@ ChainManager is an example implementation of liquidity and provider account mana
 ```go
 type LPConfig struct {
     ChainId       uint64
+	Address       string
     Keystore      string
     Passphrase    string
     Liqs          []*LiquidityConfig
