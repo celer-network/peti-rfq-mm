@@ -1134,14 +1134,20 @@ type AmountCalculator interface {
 ```go
 type DefaultAmtCalculator struct {
     // fixed cost related fields
+    // how much gas charged on dst chain, gas used by DstTransfer
     DstGasCost uint64
+    // how much gas charged on src chain, gas used by SrcRelease
     SrcGasCost uint64
+    // map from chain id to charging gas price, only used when Querier(ChainQuerier.GetGasPrice) returns error or 0
     GasPrice   map[uint64]uint64
 
-    // personalized fee related fieds
+    // personalized percentage fee related fieds
     // 100% = 1000000
+    // global fee percentage configuration, will be used when no override matches
     FeePercGlobal        uint32
+    // override per pairs of chain id
     PerChainPairOverride map[uint64]map[uint64]uint32
+    // override per pairs of <chainId-tokenAddr>
     PerTokenPairOverride map[string]map[string]uint32
 
     // helper
@@ -1195,13 +1201,13 @@ ac := rfqmm.NewDefaultAmtCalculator(feeConfig, cm, priceProvider)
 ```go
 func (ac *DefaultAmtCalculator) SetDstGasCost(gasCost uint64)
 ```
-SetDstGasCost Method sets gas cost charged by MM on dst chain .
+SetDstGasCost Method sets gas cost charged by MM on dst chain.
 
 #### func (*DefaultAmtCalculator) SetSrcGasCost
 ```go
 func (ac *DefaultAmtCalculator) SetSrcGasCost(gasCost uint64)
 ```
-SetSrcGasCost Mthtod sets gas cost charged by MM on src chain.
+SetSrcGasCost Method sets gas cost charged by MM on src chain.
 
 
 #### func (*DefaultAmtCalculator) SetGlobalFeePerc
@@ -1281,6 +1287,8 @@ if err != nil {
 ```go
 func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn *common.Token, tokenOut *common.Token, amountOut *big.Int) (*big.Int, *big.Int, *big.Int, error)
 ```
+> Not yet implemented.
+
 CalSendAmt Method estimate how much `tokenIn` should be sent by User, how much `tokenIn` will be received by MM and how
 much `tokenIn` is charged as fee in total.
 
