@@ -227,13 +227,15 @@ See [NewServer](#func-newserver) for more information on creating server.
 - [interface ApiServer](#interface-apiserver)
 - [type Server](#type-server)
   - [func NewServer(config *ServerConfig, client *rfq.Client, cm ChainQuerier, lp LiquidityProvider, ac AmountCalculator, rs RequestSigner) *Server](#func-newserver)
-  - [func (s *Server) Serve(ops ...grpc.ServerOption)](#func-server-serve)
-  - [func (s *Server) ReportConfigs()](#func-server-reportconfigs)
-  - [func (s *Server) ValidateQuote(quote *proto.Quote, sig []byte) bool](#func-server-validatequote)
-  - [func (s *Server) DefaultProcessOrder()](#func-server-defaultprocessorder)
-  - [func (s *Server) StopProcessing(reason string)](#func-server-stopprocessing)
-  - [func (s *Server) Price(ctx context.Context, request *rfqmmproto.PriceRequest) (response *rfqmmproto.PriceResponse, err error)](#func-server-price)
-  - [func (s *Server) Quote(ctx context.Context, request *rfqmmproto.QuoteRequest) (response *rfqmmproto.QuoteResponse, err error)](#func-server-quote)
+  - [func (s *Server) Serve(ops ...grpc.ServerOption)](#func---server--serve)
+  - [func (s *Server) ReportConfigs()](#func---server--reportconfigs)
+  - [func (s *Server) ValidateQuote(quote *proto.Quote, sig []byte) bool](#func---server--validatequote)
+  - [func (s *Server) DefaultProcessOrder()](#func---server--defaultprocessorder)
+  - [func (s *Server) StopProcessing(reason string)](#func---server--stopprocessing)
+  - [func (s *Server) Price(ctx context.Context, request *rfqmmproto.PriceRequest) (response *rfqmmproto.PriceResponse, err error)](#func---server--price)
+  - [func (s *Server) Quote(ctx context.Context, request *rfqmmproto.QuoteRequest) (response *rfqmmproto.QuoteResponse, err error)](#func---server--quote)
+  - [func (s *Server) SignQuoteHash(ctx context.Context, request *rfqmmproto.SignQuoteHashRequest) (response *rfqmmproto.SignQuoteHashResponse, err error)](#func---server--signquotehash)
+  - [func (s *Server) Tokens(ctx context.Context, request *rfqmmproto.TokensRequest) (response *rfqmmproto.TokensResponse, err error)](#func---server--tokens)
 - [interface ChainQuerier](#interface-chainquerier)
 - [type ChainManager](#type-chainmanager)
   - [func NewChainManager(configs []*RfqMmChainConfig) *ChainManager](#func-newchainmanager)
@@ -501,7 +503,7 @@ server.StopProcessing(reason)
 ```go
 func (s *Server) Price(ctx context.Context, request *rfqmmproto.PriceRequest) (response *rfqmmproto.PriceResponse, err error)
 ```
-Price API is a default implementation of responding a price request.
+Price service is a default implementation of responding a [Client.Price](#func---client--price) request.
 
 Basic flow:
 * validate price request
@@ -513,7 +515,7 @@ Basic flow:
 ```go
 func (s *Server) Quote(ctx context.Context, request *rfqmmproto.QuoteRequest) (response *rfqmmproto.QuoteResponse, err error)
 ```
-Quote API is a default implementation of responding at a quote request.
+Quote service is a default implementation of responding at a [Client.Quote](#func---client--quote) request.
 
 Basic flow:
 * validate quote request
@@ -521,6 +523,29 @@ Basic flow:
 * check release amount within request is correct
 * check if there is sufficient liquidity for requested token
 * sign quote
+
+#### func (*Server) SignQuoteHash
+```go
+func (s *Server) SignQuoteHash(ctx context.Context, request *rfqmmproto.SignQuoteHashRequest) (response *rfqmmproto.SignQuoteHashResponse, err error)
+```
+SignQuoteHash service is a default implementation of responding at a [Client.SignQuoteHash](#func---client--signquotehash) request.
+
+Basic flow:
+* check if self is a light versioned market maker
+* check quote sig
+* check dst deadline of quote 
+* check deposit tx of user is mined on src chain and expected event is emitted
+* check quote status within rfq contract on src chain is 1(SrcDeposited)
+* sign quote
+
+#### func (*Server) Tokens
+```go
+func (s *Server) Tokens(ctx context.Context, request *rfqmmproto.TokensRequest) (response *rfqmmproto.TokensResponse, err error)
+```
+Tokens service is a default implementation of responding at a [Client.Tokens](#func---client--tokens) request.
+
+Basic flow:
+* return all supported tokens
 
 #### interface ChainQuerier
 ```go
