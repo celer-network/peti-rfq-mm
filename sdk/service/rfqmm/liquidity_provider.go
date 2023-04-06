@@ -29,14 +29,20 @@ const (
 
 var _ LiquidityProvider = &DefaultLiquidityProvider{}
 
+// DefaultLiquidityProvider is a default implementation of interface LiquidityProvider.
 type DefaultLiquidityProvider struct {
-	paused       bool
+	// indicate whether this instance is paused or not
+	paused bool
+	// transactors for sending transactions
 	txrs         map[uint64]*ethutils.Transactor
 	chainManager *ChainManager
 	liqManager   *LiqManager
-	tokenPair    map[string]bool
+	// supported token swap pair
+	// map key is in form of <srcChainId>-<srcTokenAddr>-<srcTokenDecimal>-<dstChainId>-<dstTokenAddr>-<dstTokenDecimal>
+	tokenPair map[string]bool
 }
 
+// NewDefaultLiquidityProvider creates a new instance of DefaultLiquidityProvider.
 func NewDefaultLiquidityProvider(cm *ChainManager, lm *LiqManager) *DefaultLiquidityProvider {
 	lp := &DefaultLiquidityProvider{
 		paused:       false,
@@ -67,10 +73,12 @@ func NewDefaultLiquidityProvider(cm *ChainManager, lm *LiqManager) *DefaultLiqui
 	return lp
 }
 
+// IsPaused Method returns whether the DefaultLiquidityProvider is paused or not.
 func (d DefaultLiquidityProvider) IsPaused() bool {
 	return d.paused
 }
 
+// GetTokens Method returns a list of all supported tokens.
 func (d DefaultLiquidityProvider) GetTokens() []*common.Token {
 	tokensMap := d.liqManager.GetTokens()
 	res := make([]*common.Token, 0)
@@ -95,7 +103,19 @@ func (d DefaultLiquidityProvider) GetTokens() []*common.Token {
 	return res
 }
 
-// policy str is one of {"All", "Any2Of=<chainId>-<symbol>,<chainId>-<symbol>...", "OneOf=<chainId>-<symbol>,<chainId>-<symbol>"}
+// SetupTokenPairs Method sets up allowed token pairs according to policies.
+// Each policy string should be in one of the following formats:
+//  1. `All`, means all supported tokens are grouped in pairs. If an MM supports 5 tokens on all chains, then this policy
+//     will produce 20 pairs.
+//  2. `Any2Of=<ChainId-TokenSymbol>,...`, means tokens described in policy are grouped in pairs.
+//     >Example: policy str = "Any2Of=5-USDC,5-USDT,97-USDC", token pairs = 5-USDC -> 5-USDT, 5-USDT -> 5-USDC, 5-USDC -> 97-USDC,
+//     97-USDC -> 5-USDC, 5-USDT -> 97-USDC, 5-USDT -> 97-USDC
+//  3. `OneOf=<ChainId-TokenSymbol>,<ChainId-TokenSymbol>`, would produce only one token pair which is from the first token to
+//     the second token.
+//     >Example: policy str = "OneOf=5-USDC,97-USDC", token pair = 5-USDC -> 97-USDC. Reverse direction is forbidden. Use Any2Of to
+//     support both directions.
+//
+// Note that any space is not allowed within any policy string.
 func (d *DefaultLiquidityProvider) SetupTokenPairs(policies []string) {
 	for _, policy := range policies {
 		if policy == TPPolicyAll {
@@ -111,15 +131,19 @@ func (d *DefaultLiquidityProvider) SetupTokenPairs(policies []string) {
 	}
 }
 
+// HasTokenPair Method checks whether a token pair is allowed by this MM.
 func (d DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool {
 	key := genTokenPairKey(srcToken, dstToken)
 	return d.tokenPair[key]
 }
 
+// GetLiquidityProviderAddr Method returns the address of liquidity provider on specified chain.
 func (d DefaultLiquidityProvider) GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error) {
 	return d.liqManager.GetLiquidityProvider(chainId)
 }
 
+// AskForFreezing Method checks if there is sufficient liquidity for specified token on specified chain and returns freeze time.
+// Freeze time indicates how long the requested liquidity will be frozen.
 func (d DefaultLiquidityProvider) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) (int64, error) {
 	if d.paused {
 		return 0, proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_PROVIDER, "liquidity provider is paused due to some serious error")
@@ -134,6 +158,9 @@ func (d DefaultLiquidityProvider) AskForFreezing(chainId uint64, token eth.Addr,
 	return d.liqManager.AskForFreezing(chainId, token, amount)
 }
 
+// FreezeLiquidity Method will freeze certain amount of specific liquidity with quoteHash until specific timestamp.
+// As native token and wrapped native token are managed differently, `isNative` is needed to indicate whether the frozen
+// token is native or not.
 func (d DefaultLiquidityProvider) FreezeLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error {
 	if d.paused {
 		return proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_PROVIDER, "liquidity provider is paused due to some serious error")
@@ -148,10 +175,12 @@ func (d DefaultLiquidityProvider) FreezeLiquidity(chainId uint64, token eth.Addr
 	return d.liqManager.ReserveLiquidity(chainId, token, amount, until, hash)
 }
 
+// UnfreezeLiquidity Method will try to unfreeze a certain liquidity with specified hash.
 func (d DefaultLiquidityProvider) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error {
 	return d.liqManager.UnfreezeLiquidity(chainId, hash)
 }
 
+// DstTransfer Method sends tx on dstChain to transfer dstToken to the User.
 func (d *DefaultLiquidityProvider) DstTransfer(transferNative bool, _quote rfq.RFQQuote, opts ...ethutils.TxOption) (eth.Hash, error) {
 	if d.paused {
 		return eth.ZeroHash, proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_PROVIDER, "liquidity provider is paused due to some serious error")
@@ -193,6 +222,7 @@ func (d *DefaultLiquidityProvider) DstTransfer(transferNative bool, _quote rfq.R
 	return tx.Hash(), nil
 }
 
+// SrcRelease Method sends tx on srcChain to release srcToken to MM.
 func (d *DefaultLiquidityProvider) SrcRelease(_quote rfq.RFQQuote, _execMsgCallData []byte, opts ...ethutils.TxOption) (eth.Hash, error) {
 	if d.paused {
 		return eth.ZeroHash, proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_PROVIDER, "liquidity provider is paused due to some serious error")
@@ -449,6 +479,7 @@ func (d DefaultLiquidityProvider) unwrapNative(chainId uint64, amount *big.Int, 
 	return tx.Hash(), nil
 }
 
+// substituteNativeToken converts native token wrap address to NativeTokenReference
 func (d DefaultLiquidityProvider) substituteNativeToken(chainId uint64, wrap eth.Addr) (eth.Addr, error) {
 	expectedWrap, err := d.chainManager.GetNativeWrap(chainId)
 	if err != nil {

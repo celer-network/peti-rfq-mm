@@ -784,10 +784,15 @@ type LiquidityProvider interface {
 #### type DefaultLiquidityProvider
 ```go
 type DefaultLiquidityProvider struct {
-	paused       bool
-	txrs         map[uint64]*ethutils.Transactor
-	chainManager *ChainManager
-	liqManager   *LiqManager
+    // indicate whether this instance is paused or not
+    paused       bool
+    // transactors for sending transactions
+    txrs         map[uint64]*ethutils.Transactor
+    chainManager *ChainManager
+    liqManager   *LiqManager
+    // supported token swap pair
+    // map key is in form of <srcChainId>-<srcTokenAddr>-<srcTokenDecimal>-<dstChainId>-<dstTokenAddr>-<dstTokenDecimal>
+    tokenPair    map[string]bool
 }
 ```
 DefaultLiquidityProvider is a default implementation of interface LiquidityProvider.
@@ -807,19 +812,19 @@ lp := rfqmm.NewDefaultLiquidityProvider(cm, lm)
 
 #### func (*DefaultLiquidityProvider) IsPaused
 ```go
-func (lp DefaultLiquidityProvider) IsPaused() bool
+func (lp *DefaultLiquidityProvider) IsPaused() bool
 ```
 IsPaused Method returns whether the DefaultLiquidityProvider is paused or not.
 
 #### func (*DefaultLiquidityProvider) GetTokens
 ```go
-func (lp DefaultLiquidityProvider) GetTokens() []*common.Token
+func (lp *DefaultLiquidityProvider) GetTokens() []*common.Token
 ```
 GetTokens Method returns a list of all supported tokens.
 
 #### func (*DefaultLiquidityProvider) SetupTokenPairs
 ```go
-func (lp DefaultLiquidityProvider) SetupTokenPairs(policies []string)
+func (lp *DefaultLiquidityProvider) SetupTokenPairs(policies []string)
 ```
 SetupTokenPairs Method sets up allowed token pairs according to policies.
 Each policy string should be in one of the following formats:
@@ -836,13 +841,13 @@ the second token.
 
 #### func (*DefaultLiquidityProvider) HasTokenPair
 ```go
-func (lp DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool
+func (lp *DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool
 ```
 HasTokenPair Method checks whether a token pair is allowed by this MM.
 
 #### func (*DefaultLiquidityProvider) GetLiquidityProviderAddr
 ```go
-func (lp DefaultLiquidityProvider) GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error)
+func (lp *DefaultLiquidityProvider) GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error)
 ```
 GetLiquidityProviderAddr Method returns the address of liquidity provider on specified chain.
 
@@ -856,7 +861,7 @@ if err != nil {
 
 #### func (*DefaultLiquidityProvider) AskForFreezing
 ```go
-func (lp DefaultLiquidityProvider) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) (int64, error)
+func (lp *DefaultLiquidityProvider) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) (freezeTime int64, err error)
 ```
 AskForFreezing Method checks if there is sufficient liquidity for specified token on specified chain and returns freeze time.
 Freeze time indicates how long the requested liquidity will be frozen.
@@ -871,7 +876,7 @@ if err != nil {
 
 #### func (*DefaultLiquidityProvider) FreezeLiquidity
 ```go
-func (lp DefaultLiquidityProvider) FreezeLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error
+func (lp *DefaultLiquidityProvider) FreezeLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error
 ```
 FreezeLiquidity Method will freeze certain amount of specific liquidity with quoteHash until specific timestamp.
 As native token and wrapped native token are managed differently, `isNative` is needed to indicate whether the frozen token
@@ -888,7 +893,7 @@ if err != nil {
 
 #### func (*DefaultLiquidityProvider) UnfreezeLiquidity
 ```go
-func (lp DefaultLiquidityProvider) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error
+func (lp *DefaultLiquidityProvider) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error
 ```
 UnfreezeLiquidity Method will try to unfreeze a certain liquidity with specified hash.
 
@@ -905,7 +910,7 @@ if err != nil {
 ```go
 func (lp *DefaultLiquidityProvider) DstTransfer(transferNative bool, _quote binding.RFQQuote, opts ...eth.TxOption) (eth.Hash, error)
 ```
-DstTransfer Method sends tx on dstChain to transfer dstToken to the User .
+DstTransfer Method sends tx on dstChain to transfer dstToken to the User.
 
 Example:
 ```go
