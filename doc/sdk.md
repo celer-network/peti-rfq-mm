@@ -239,15 +239,16 @@ See [NewServer](#func-newserver) for more information on creating server.
 - [interface ChainQuerier](#interface-chainquerier)
 - [type ChainManager](#type-chainmanager)
   - [func NewChainManager(configs []*RfqMmChainConfig) *ChainManager](#func-newchainmanager)
-  - [func (cm *ChainManager) GetChain(chainId uint64) (*Chain, error)](#func-chainmanager-getchain)
-  - [func (cm *ChainManager) GetRfqFee(srcChainId uint64, dstChainId uint64, amount *big.Int) (*big.Int, error)](#func-chainmanager-getrfqfee)
-  - [func (cm *ChainManager) GetMsgFee(chainId uint64) (*big.Int, error)](#func-chainmanager-getmsgfee)
-  - [func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error)](#func-chainmanager-getgasprice)
-  - [func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error)](#func-chainmanager-getnativetoken)
-  - [func (cm *ChainManager) GetERC20Balance(chainId uint64, token eth.Addr, account eth.Addr) (*big.Int, error)](#func-chainmanager-geterc20balance)
-  - [func (cm *ChainManager) GetNativeBalance(chainId uint64, account eth.Addr) (*big.Int, error)](#func-chainmanager-getnativebalance)
-  - [func (cm *ChainManager) GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)](#func-chainmanager-getquotestatus)
-  - [func (cm *ChainManager) VerifyRfqEvent(chainId uint64, tx eth.Hash, evName string) (bool, error)](#func-chainmanager-verifyrfqevent)
+  - [func (cm *ChainManager) GetChain(chainId uint64) (*Chain, error)](#func---chainmanager--getchain)
+  - [func (cm *ChainManager) GetRfqContract(chainId uint64) (eth.Addr, error)](#func---chainmanager--getrfqcontract)
+  - [func (cm *ChainManager) GetRfqFee(srcChainId uint64, dstChainId uint64, amount *big.Int) (*big.Int, error)](#func---chainmanager--getrfqfee)
+  - [func (cm *ChainManager) GetMsgFee(chainId uint64) (*big.Int, error)](#func---chainmanager--getmsgfee)
+  - [func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error)](#func---chainmanager--getgasprice)
+  - [func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error)](#func---chainmanager--getnativetoken)
+  - [func (cm *ChainManager) GetERC20Balance(chainId uint64, token eth.Addr, account eth.Addr) (*big.Int, error)](#func---chainmanager--geterc20balance)
+  - [func (cm *ChainManager) GetNativeBalance(chainId uint64, account eth.Addr) (*big.Int, error)](#func---chainmanager--getnativebalance)
+  - [func (cm *ChainManager) GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)](#func---chainmanager--getquotestatus)
+  - [func (cm *ChainManager) VerifyRfqEvent(chainId uint64, tx eth.Hash, evName string) (bool, error)](#func---chainmanager--verifyrfqevent)
 - [interface LiquidityProvider](#interface-liquidityprovider)
 - [type DefaultLiquidityProvider](#type-defaultliquidityprovider)
   - [func NewDefaultLiquidityProvider(cm *ChainManager, lm *LiqManager) *DefaultLiquidityProvider](#func-newdefaultliquidityprovider)
@@ -605,14 +606,14 @@ Example:
 var chainConfig []*rfqmm.RfqMmChainConfig
 err = viper.UnmarshalKey("multichain", &chainConfig)
 if err != nil {
-	// handle err
+    // handle err
 }
 cm := rfqmm.NewChainManager(chainConfig)
 ```
 
 #### func (*ChainManager) GetChain
 ```go
-[func (cm *ChainManager) GetChain(chainId uint64) (*Chain, error)
+func (cm *ChainManager) GetChain(chainId uint64) (*Chain, error)
 ```
 GetChain Method returns the Chain with specific chainId.
 
@@ -621,7 +622,22 @@ Example:
 // get chain of Goerli
 chain, err := cm.GetChain(5)
 if err != nil {
-	// handle err
+    // handle err
+}
+```
+
+#### func (*ChainManager) GetRfqContract
+```go
+func (cm *ChainManager) GetRfqContract(chainId uint64) (eth.Addr, error)
+```
+GetRfqContract Method returns the address of RFQ contract on specific Chain.
+
+Example:
+```go
+// get RFQ contract address on Goerli
+rfqAddr, err := cm.GetRfqContract(5)
+if err != nil { 
+    // handle err
 }
 ```
 
