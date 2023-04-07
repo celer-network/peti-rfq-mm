@@ -144,7 +144,9 @@ type AmountCalculator interface {
 }
 
 type RequestSigner interface {
+	// Sign returns the signature of the underlying signer for the given data
 	Sign(data []byte) ([]byte, error)
+	// Verify returns whether the signature is signed by the underlying signer
 	Verify(data, sig []byte) bool
 }
 

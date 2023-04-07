@@ -288,8 +288,12 @@ See [NewServer](#func-newserver) for more information on creating server.
   - [func (ac *DefaultAmtCalculator) SetGasPrice(prices []*GasPrice)](#func-defaultamtcalculator-setgasprice)
   - [func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn *common.Token, tokenOut *common.Token, amountIn *big.Int) (amountOut *big.Int, releaseAmt *big.Int, fee *big.Int, err error)](#func-defaultamtcalculator-calrecvamt)
   - [func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn *common.Token, tokenOut *common.Token, amountOut *big.Int) (*big.Int, *big.Int, *big.Int, error)](#func-defaultamtcalculator-calsendamt)
-- [interface PriceProvider](#interface-priceprovider)
 - [interface RequestSigner](#interface-requestsigner)
+- [type DefaultRequestSigner](#type-defaultrequestsigner)
+  - [func NewRequestSigner](#func-newrequestsigner)
+  - [func (rs *DefaultRequestSigner) Sign(data []byte) ([]byte, error)](#func---defaultrequestsigner--sign)
+  - [func (rs *DefaultRequestSigner) Verify(data, sig []byte) bool](#func---defaultrequestsigner--verify)
+- [interface PriceProvider](#interface-priceprovider)
 
 
 
@@ -1331,14 +1335,6 @@ if err != nil {
 }
 ```
 
-#### interface PriceProvider
-```go
-type PriceProvider interface {
-	GetPrice(token *common.Token) (float64, error)
-}
-```
-PriceProvider is an important part for creating a [DefaultAmtCalculator](#type-defaultamtcalculator)
-
 #### interface RequestSigner
 ```go
 type RequestSigner interface {
@@ -1346,6 +1342,63 @@ type RequestSigner interface {
 	Verify(data, sig []byte) bool
 }
 ```
+
+#### type DefaultRequestSigner
+```go
+type DefaultRequestSigner struct {
+	Signer  ethutils.Signer
+	Address eth.Addr
+}
+```
+DefaultRequestSigner is a default implementation of interface RequestSigner.
+
+#### func NewRequestSigner
+```go
+type RequestSignerConfig struct {
+    ChainId    uint64
+    Keystore   string
+    Passphrase string
+}
+
+func NewRequestSigner(config *RequestSignerConfig) *DefaultRequestSigner
+```
+NewRequestSigner creates a new instance of DefaultRequestSigner.
+
+#### func (*DefaultRequestSigner) Sign
+```go
+func (rs *DefaultRequestSigner) Sign(data []byte) ([]byte, error)
+```
+Sign Method returns the signature of the underlying signer for the given data.
+
+Example:
+```go
+sig, err = rs.Sign(data)
+if err != nil {
+	// handle err
+}
+```
+
+#### func (*DefaultRequestSigner) Verify
+```go
+func (rs *DefaultRequestSigner) Verify(data, sig []byte) bool
+```
+Verify Method returns whether the signature is signed by the underlying signer.
+
+Example:
+```go
+ok = rs.Verify(data, sig)
+if !ok {
+	// handle case for bad sig
+}
+```
+
+#### interface PriceProvider
+```go
+type PriceProvider interface {
+	GetPrice(token *common.Token) (float64, error)
+}
+```
+PriceProvider is an important part for creating a [DefaultAmtCalculator](#type-defaultamtcalculator)
 
 #### message Price 
 ```protobuf
