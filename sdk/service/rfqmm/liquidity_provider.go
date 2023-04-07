@@ -609,10 +609,12 @@ func genTokenPairKey(srcToken, dstToken *common.Token) string {
 		dstToken.ChainId, eth.FormatAddrHex(dstToken.Address), dstToken.Decimals)
 }
 
+// LiqManager is an example implementation of liquidity and provider account management.
 type LiqManager struct {
 	iLPs map[uint64]*internalLP
 }
 
+// NewLiqManager creates a new instance of LiqManager.
 func NewLiqManager(configs []*LPConfig) *LiqManager {
 	lps := make(map[uint64]*internalLP)
 	for _, config := range configs {
@@ -623,6 +625,7 @@ func NewLiqManager(configs []*LPConfig) *LiqManager {
 	return &LiqManager{iLPs: lps}
 }
 
+// GetLiqNeedApprove Method returns tokens with amount to be approved on specific chain.
 func (d *LiqManager) GetLiqNeedApprove(chainId uint64) ([]*common.Token, []*big.Int, error) {
 	lp, err := d.getLP(chainId)
 	if err != nil {
@@ -632,6 +635,7 @@ func (d *LiqManager) GetLiqNeedApprove(chainId uint64) ([]*common.Token, []*big.
 	return tokens, amounts, nil
 }
 
+// GetChains Method returns a non-repeating list of chainId of all liquidity.
 func (d *LiqManager) GetChains() []uint64 {
 	res := make([]uint64, 0)
 	for k := range d.iLPs {
@@ -640,6 +644,7 @@ func (d *LiqManager) GetChains() []uint64 {
 	return res
 }
 
+// GetTokens Method returns a map from chainId to configured liquidity tokens.
 func (d *LiqManager) GetTokens() map[uint64][]*common.Token {
 	res := make(map[uint64][]*common.Token, 0)
 	for _, lp := range d.iLPs {
@@ -648,6 +653,7 @@ func (d *LiqManager) GetTokens() map[uint64][]*common.Token {
 	return res
 }
 
+// GetLPAddr Method returns provider account's address of specific chain.
 func (d *LiqManager) GetLPAddr(chainId uint64) (eth.Addr, error) {
 	lp, err := d.getLP(chainId)
 	if err != nil {
@@ -656,6 +662,8 @@ func (d *LiqManager) GetLPAddr(chainId uint64) (eth.Addr, error) {
 	return lp.address, nil
 }
 
+// AskForFreezing Method checks if there is sufficient liquidity for specified token on specified chain and returns freeze time.
+// Freeze time indicates how long the requested liquidity is reserved before the User deposit.
 func (d *LiqManager) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int) (int64, error) {
 	lp, err := d.getLP(chainId)
 	if err != nil {
@@ -673,6 +681,8 @@ func (d *LiqManager) AskForFreezing(chainId uint64, token eth.Addr, amount *big.
 	return lp.getFreezeTime(eth.Addr2Hex(token))
 }
 
+// ReserveLiquidity Method used for reserving liquidity when the User confirms a quotation.
+// Deadline of reservation and quoteHash should be supplied.
 func (d *LiqManager) ReserveLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error {
 	lp, err := d.getLP(chainId)
 	if err != nil {
@@ -681,6 +691,8 @@ func (d *LiqManager) ReserveLiquidity(chainId uint64, token eth.Addr, amount *bi
 	return lp.reserveLiquidity(eth.Addr2Hex(token), amount, until, hash)
 }
 
+// ConfirmLiquidity Method used for confirming liquidity when RFQ Server informs an MM that the User has deposited.
+// Deadline of confirmation and quoteHash should be supplied.
 func (d *LiqManager) ConfirmLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error {
 	lp, err := d.getLP(chainId)
 	if err != nil {
@@ -689,6 +701,8 @@ func (d *LiqManager) ConfirmLiquidity(chainId uint64, token eth.Addr, amount *bi
 	return lp.confirmLiquidity(eth.Addr2Hex(token), amount, until, hash)
 }
 
+// UnfreezeLiquidity Method used to unfreeze a certain liquidity by quoteHash.
+// It applies to both of reservation and confirmation.
 func (d *LiqManager) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error {
 	lp, err := d.getLP(chainId)
 	if err != nil {
@@ -698,6 +712,7 @@ func (d *LiqManager) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error {
 	return nil
 }
 
+// TransferOutLiquidity Method used to deduct liquidity amount after an MM has transferred token to the User.
 func (d *LiqManager) TransferOutLiquidity(chainId uint64, token eth.Addr, amount *big.Int, hash eth.Hash) error {
 	lp, err := d.getLP(chainId)
 	if err != nil {
@@ -706,6 +721,7 @@ func (d *LiqManager) TransferOutLiquidity(chainId uint64, token eth.Addr, amount
 	return lp.transferOutLiquidity(eth.Addr2Hex(token), amount, hash)
 }
 
+// ReleaseInLiquidity Method used to augment liquidity amount after an MM has released token from src chain.
 func (d *LiqManager) ReleaseInLiquidity(chainId uint64, token eth.Addr, amount *big.Int) error {
 	lp, err := d.getLP(chainId)
 	if err != nil {
@@ -714,6 +730,7 @@ func (d *LiqManager) ReleaseInLiquidity(chainId uint64, token eth.Addr, amount *
 	return lp.releaseInLiquidity(eth.Addr2Hex(token), amount)
 }
 
+// ReleaseNative Method returns whether native token on specific chain is preferred during token releasing.
 func (d *LiqManager) ReleaseNative(chainId uint64) (bool, error) {
 	lp, err := d.getLP(chainId)
 	if err != nil {
@@ -722,6 +739,7 @@ func (d *LiqManager) ReleaseNative(chainId uint64) (bool, error) {
 	return lp.releaseNative, nil
 }
 
+// UpdateLiqAmt Method updates local liquidity amount via a given ChainQuerier.
 func (d *LiqManager) UpdateLiqAmt(querier ChainQuerier) {
 	for chainId, lp := range d.iLPs {
 		for _, liq := range lp.liqs {
@@ -745,6 +763,8 @@ func (d *LiqManager) UpdateLiqAmt(querier ChainQuerier) {
 	}
 }
 
+// GetSigner Method returns the provider account address and an eth type signer which can be used to sign eth message,
+// construct a transactor or construct a DefaultRequestSigner.
 func (d *LiqManager) GetSigner(chainId uint64) (eth.Addr, ethutils.Signer, error) {
 	lp, err := d.getLP(chainId)
 	if err != nil {

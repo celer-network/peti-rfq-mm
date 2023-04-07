@@ -265,18 +265,18 @@ See [NewServer](#func-newserver) for more information on creating server.
 - [type LiqManager](#type-liqmanager)
   - [func NewLiqManager(configs []*LPConfig) *LiqManager](#func-newliqmanager)
   - [func (lm *LiqManager) GetChains() []uint64](#func-liqmanager-getchains)
-  - [func (lm *LiqManager) GetTokens() map[uint64][]*common.Token](#func-liqmanager-gettokens)
-  - [func (lm *LiqManager) GetLPAddr(chainId uint64) (eth.Addr, error)](#func-liqmanager-getlpaddr)
-  - [func (lm *LiqManager) GetLiqNeedApprove(chainId uint64) ([]*common.Token, []*big.Int, error)](#func-liqmanager-getliqneedapprove)
-  - [func (lm *LiqManager) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int) (int64, error)](#func-liqmanager-askforfreezing)
-  - [func (lm *LiqManager) ReserveLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error](#func-liqmanager-reserveliquidity)
-  - [func (lm *LiqManager) ConfirmLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error](#func-liqmanager-confirmliquidity)
-  - [func (lm *LiqManager) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error](#func-liqmanager-unfreezeliquidity)
-  - [func (lm *LiqManager) TransferOutLiquidity(chainId uint64, token eth.Addr, amount *big.Int, hash eth.Hash) error](#func-liqmanager-transferoutliquidity)
-  - [func (lm *LiqManager) ReleaseInLiquidity(chainId uint64, token eth.Addr, amount *big.Int) error](#func-liqmanager-releaseinliquidity)
-  - [func (lm *LiqManager) ReleaseNative(chainId uint64) (bool, error)](#func-liqmanager-releasenative)
-  - [func (lm *LiqManager) UpdateLiqAmt(querier ChainQuerier)](#func-liqmanager-updateliqamt)
-  - [func (lm *LiqManager) GetSigner(chainId uint64) (eth.Addr, eth.Signer, error)](#func-liqmanager-getsigner)
+  - [func (lm *LiqManager) GetTokens() map[uint64][]*common.Token](#func---liqmanager--gettokens)
+  - [func (lm *LiqManager) GetLPAddr(chainId uint64) (eth.Addr, error)](#func---liqmanager--getlpaddr)
+  - [func (lm *LiqManager) GetLiqNeedApprove(chainId uint64) ([]*common.Token, []*big.Int, error)](#func---liqmanager--getliqneedapprove)
+  - [func (lm *LiqManager) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int) (int64, error)](#func---liqmanager--askforfreezing)
+  - [func (lm *LiqManager) ReserveLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error](#func---liqmanager--reserveliquidity)
+  - [func (lm *LiqManager) ConfirmLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error](#func---liqmanager--confirmliquidity)
+  - [func (lm *LiqManager) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error](#func---liqmanager--unfreezeliquidity)
+  - [func (lm *LiqManager) TransferOutLiquidity(chainId uint64, token eth.Addr, amount *big.Int, hash eth.Hash) error](#func---liqmanager--transferoutliquidity)
+  - [func (lm *LiqManager) ReleaseInLiquidity(chainId uint64, token eth.Addr, amount *big.Int) error](#func---liqmanager--releaseinliquidity)
+  - [func (lm *LiqManager) ReleaseNative(chainId uint64) (bool, error)](#func---liqmanager--releasenative)
+  - [func (lm *LiqManager) UpdateLiqAmt(querier ChainQuerier)](#func---liqmanager--updateliqamt)
+  - [func (lm *LiqManager) GetSigner(chainId uint64) (eth.Addr, eth.Signer, error)](#func---liqmanager--getsigner)
 - [interface AmountCalculator](#interface-amountcalculator)
 - [type DefaultAmtCalculator](#type-defaultamtcalculator)
   - [func NewDefaultAmtCalculator(feeConfig *FeeConfig, querier ChainQuerier, priceProvider PriceProvider) *DefaultAmtCalculator](#func-newdefaultamtcalculator)
@@ -941,7 +941,7 @@ type LiqManager struct {
 	iLPs map[uint64]*internalLP
 }
 ```
-ChainManager is an example implementation of liquidity and provider account management.
+LiqManager is an example implementation of liquidity and provider account management.
 
 #### func NewLiqManager
 ```go
