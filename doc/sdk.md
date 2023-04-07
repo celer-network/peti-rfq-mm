@@ -266,7 +266,7 @@ See [NewServer](#func-newserver) for more information on creating server.
   - [func NewLiqManager(configs []*LPConfig) *LiqManager](#func-newliqmanager)
   - [func (lm *LiqManager) GetChains() []uint64](#func-liqmanager-getchains)
   - [func (lm *LiqManager) GetTokens() map[uint64][]*common.Token](#func-liqmanager-gettokens)
-  - [func (lm *LiqManager) GetLiquidityProvider(chainId uint64) (eth.Addr, error)](#func-liqmanager-getliquidityprovider)
+  - [func (lm *LiqManager) GetLPAddr(chainId uint64) (eth.Addr, error)](#func-liqmanager-getlpaddr)
   - [func (lm *LiqManager) GetLiqNeedApprove(chainId uint64) ([]*common.Token, []*big.Int, error)](#func-liqmanager-getliqneedapprove)
   - [func (lm *LiqManager) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int) (int64, error)](#func-liqmanager-askforfreezing)
   - [func (lm *LiqManager) ReserveLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error](#func-liqmanager-reserveliquidity)
@@ -276,7 +276,6 @@ See [NewServer](#func-newserver) for more information on creating server.
   - [func (lm *LiqManager) ReleaseInLiquidity(chainId uint64, token eth.Addr, amount *big.Int) error](#func-liqmanager-releaseinliquidity)
   - [func (lm *LiqManager) ReleaseNative(chainId uint64) (bool, error)](#func-liqmanager-releasenative)
   - [func (lm *LiqManager) UpdateLiqAmt(querier ChainQuerier)](#func-liqmanager-updateliqamt)
-  - [func (lm *LiqManager) GetLP(chainId uint64) (*LiqProvider, error)](#func-liqmanager-getlp)
   - [func (lm *LiqManager) GetSigner(chainId uint64) (eth.Addr, eth.Signer, error)](#func-liqmanager-getsigner)
 - [interface AmountCalculator](#interface-amountcalculator)
 - [type DefaultAmtCalculator](#type-defaultamtcalculator)
@@ -939,10 +938,10 @@ if err != nil {
 #### type LiqManager
 ```go
 type LiqManager struct {
-	LPs map[uint64]*LiqProvider
+	iLPs map[uint64]*internalLP
 }
 ```
-ChainManager is an example implementation of liquidity and provider account management. Each LiqProvider can be used as a [RequestSigner](#interface-requestsigner).
+ChainManager is an example implementation of liquidity and provider account management.
 
 #### func NewLiqManager
 ```go
@@ -988,15 +987,15 @@ func (lm *LiqManager) GetTokens() map[uint64][]*common.Token
 ```
 GetTokens Method returns a map from chainId to configured liquidity tokens.
 
-#### func (*LiqManager) GetLiquidityProvider
+#### func (*LiqManager) GetLPAddr
 ```go
-func (lm *LiqManager) GetLiquidityProvider(chainId uint64) (eth.Addr, error)
+func (lm *LiqManager) GetLPAddr(chainId uint64) (eth.Addr, error)
 ```
-GetLiquidityProvider Method returns provider account's address of specific chain.
+GetLPAddr Method returns provider account's address of specific chain.
 
 Example:
 ```go
-addr, err := lm.GetLiquidityProvider(5)
+addr, err := lm.GetLPAddr(5)
 if err != nil {
 	// handle err
 }
@@ -1139,26 +1138,11 @@ cm := NewChainManager(chainConfig)
 lm.UpdateLiqAmt(cm)
 ```
 
-#### func (*LiqManager) GetLP
-```go
-func (lm *LiqManager) GetLP(chainId uint64) (*LiqProvider, error)
-```
-GetLP Method used to get a LiqProvider that can be used as a [RequestSigner](#interface-requestsigner).
-
-Example:
-```go
-requestSigner, err := lm.GetLP(5)
-if err != nil {
-	// handle err
-}
-```
-
 #### func (*LiqManager) GetSigner
 ```go
 func (lm *LiqManager) GetSigner(chainId uint64) (eth.Addr, eth.Signer, error)
 ```
-GetSigner Method returns the provider account address and an eth type signer which can be used to sign eth message or
-construct a transactor.
+GetSigner Method returns the provider account address and an eth type signer which can be used to sign eth message, construct a transactor or construct a [DefaultRequestSigner](#type-defaultrequestsigner).
 
 Example:
 ```go
