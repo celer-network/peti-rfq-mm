@@ -21,9 +21,9 @@ See [NewClient](#func-newclient) for more information on creating client for thi
 ### Types
 - [type Client](#type-client)
     - [func NewClient(server string, apiKey string, ops ...grpc.DialOption) *Client](#func-newclient)
-    - [func (c *Client) PendingOrders(ctx context.Context, in *rfqproto.PendingOrdersRequest, opts ...grpc.CallOption) (*rfqproto.PendingOrdersResponse, error)](#func-client-pendingorders)
-    - [func (c *Client) UpdateOrders(ctx context.Context, in *rfqproto.UpdateOrdersRequest, opts ...grpc.CallOption) (*rfqproto.UpdateOrdersResponse, error)](#func-client-updateorders)
-    - [func (c *Client) UpdateConfigs(ctx context.Context, in *rfqproto.UpdateConfigsRequest, opts ...grpc.CallOption) (*rfqproto.UpdateConfigsResponse, error)](#func-client-updateconfigs)
+    - [func (c *Client) PendingOrders(ctx context.Context, in *rfqproto.PendingOrdersRequest, opts ...grpc.CallOption) (*rfqproto.PendingOrdersResponse, error)](#func---client--pendingorders)
+    - [func (c *Client) UpdateOrders(ctx context.Context, in *rfqproto.UpdateOrdersRequest, opts ...grpc.CallOption) (*rfqproto.UpdateOrdersResponse, error)](#func---client--updateorders)
+    - [func (c *Client) UpdateConfigs(ctx context.Context, in *rfqproto.UpdateConfigsRequest, opts ...grpc.CallOption) (*rfqproto.UpdateConfigsResponse, error)](#func---client--updateconfigs)
 
 ### Protos
 - [message PendingOrder](#message-pendingorder)
@@ -38,10 +38,10 @@ See [NewClient](#func-newclient) for more information on creating client for thi
 #### type Client
 ```go
 type Client struct {
-	rfqproto.MMApiClient
-	// rfq server URL
-	server string
-	conn   *grpc.ClientConn
+    rfqproto.MMApiClient
+    // rfq server URL
+    server string
+    conn   *grpc.ClientConn
 }
 ```
 #### func NewClient
@@ -79,9 +79,9 @@ UpdateOrders API updates orders maintained by RFQ Server.
 Example:
 ```go
 _, err := client.UpdateOrders(context.Background(),
-	&rfqproto.UpdateOrdersRequest{
-		Updates: []*rfqproto.OrderUpdates{{QuoteHash: quoteHash, OrderStatus: toStatus, ExecTxHash: txHash}},
-	})
+    &rfqproto.UpdateOrdersRequest{
+        Updates: []*rfqproto.OrderUpdates{{QuoteHash: quoteHash, OrderStatus: toStatus, ExecTxHash: txHash}},
+    })
 if err != nil {
     // handle error
 }
@@ -210,7 +210,7 @@ Package rfqmmproto provides the types for making API requests to MM application.
 To contact MM application with the SDK use the NewClient function to create a new service client. With that client you can make API
 requests to the MM.
 
-See [NewClient](#rfqmmfunc-newclient) for more information on creating client for this service.
+See [NewClient](#-rfqmm--func-newclient) for more information on creating client for this service.
 
 ### Using the server
 To build an MM application with the SDK use the NewServer function to create a new server. With that client you can serve
@@ -219,11 +219,11 @@ requests and process pending orders from RFQ Server.
 See [NewServer](#func-newserver) for more information on creating server.
 
 ### Types
-- [type Client](#rfqmmtype-client)
-  - [func NewClient(server string, ops ...grpc.DialOption) *Client](#rfqmmfunc-newclient)
-  - [func (c *Client) Price(ctx context.Context, in *rfqmmproto.PriceRequest, opts ...grpc.CallOption) (*rfqmmproto.PriceResponse, error)](#func-client-price)
-  - [func (c *Client) Quote(ctx context.Context, in *rfqmmproto.QuoteRequest, opts ...grpc.CallOption) (*rfqmmproto.QuoteResponse, error)](#func-client-quote)
-  - [func (c *Client) Close()](#func-client-close)
+- [type Client](#-rfqmm--type-client)
+  - [func NewClient(server string, ops ...grpc.DialOption) *Client](#-rfqmm--func-newclient)
+  - [func (c *Client) Price(ctx context.Context, in *rfqmmproto.PriceRequest, opts ...grpc.CallOption) (*rfqmmproto.PriceResponse, error)](#func---client--price)
+  - [func (c *Client) Quote(ctx context.Context, in *rfqmmproto.QuoteRequest, opts ...grpc.CallOption) (*rfqmmproto.QuoteResponse, error)](#func---client--quote)
+  - [func (c *Client) Close()](#func---client--close)
 - [interface ApiServer](#interface-apiserver)
 - [type Server](#type-server)
   - [func NewServer(config *ServerConfig, client *rfq.Client, cm ChainQuerier, lp LiquidityProvider, ac AmountCalculator, rs RequestSigner) *Server](#func-newserver)
@@ -244,7 +244,7 @@ See [NewServer](#func-newserver) for more information on creating server.
   - [func (cm *ChainManager) GetRfqFee(srcChainId uint64, dstChainId uint64, amount *big.Int) (*big.Int, error)](#func---chainmanager--getrfqfee)
   - [func (cm *ChainManager) GetMsgFee(chainId uint64) (*big.Int, error)](#func---chainmanager--getmsgfee)
   - [func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error)](#func---chainmanager--getgasprice)
-  - [func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error)](#func---chainmanager--getnativetoken)
+  - [func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error)](#func---chainmanager--getnativewrap)
   - [func (cm *ChainManager) GetERC20Balance(chainId uint64, token eth.Addr, account eth.Addr) (*big.Int, error)](#func---chainmanager--geterc20balance)
   - [func (cm *ChainManager) GetNativeBalance(chainId uint64, account eth.Addr) (*big.Int, error)](#func---chainmanager--getnativebalance)
   - [func (cm *ChainManager) GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)](#func---chainmanager--getquotestatus)
@@ -252,19 +252,19 @@ See [NewServer](#func-newserver) for more information on creating server.
 - [interface LiquidityProvider](#interface-liquidityprovider)
 - [type DefaultLiquidityProvider](#type-defaultliquidityprovider)
   - [func NewDefaultLiquidityProvider(cm *ChainManager, lm *LiqManager) *DefaultLiquidityProvider](#func-newdefaultliquidityprovider)
-  - [func (lp DefaultLiquidityProvider) IsPaused() bool](#func-defaultliquidityprovider-ispaused)
-  - [func (lp DefaultLiquidityProvider) GetTokens() []*common.Token](#func-defaultliquidityprovider-gettokens)
-  - [func (lp DefaultLiquidityProvider) SetupTokenPairs(policies []string)](#func-defaultliquidityprovider-setuptokenpairs)
-  - [func (lp DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool](#func-defaultliquidityprovider-hastokenpair)
-  - [func (lp DefaultLiquidityProvider) GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error)](#func-defaultliquidityprovider-getliquidityprovideraddr)
-  - [func (lp DefaultLiquidityProvider) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) (int64, error)](#func-defaultliquidityprovider-askforfreezing)
-  - [func (lp DefaultLiquidityProvider) FreezeLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error](#func-defaultliquidityprovider-freezeliquidity)
-  - [func (lp DefaultLiquidityProvider) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error](#func-defaultliquidityprovider-unfreezeliquidity)
-  - [func (lp *DefaultLiquidityProvider) DstTransfer(transferNative bool, _quote rfq.RFQQuote, opts ...eth.TxOption) (eth.Hash, error)](#func-defaultliquidityprovider-dsttransfer)
-  - [func (lp *DefaultLiquidityProvider) SrcRelease(_quote rfq.RFQQuote, _execMsgCallData []byte, opts ...eth.TxOption) (eth.Hash, error)](#func-defaultliquidityprovider-srcrelease)
+  - [func (lp DefaultLiquidityProvider) IsPaused() bool](#func---defaultliquidityprovider--ispaused)
+  - [func (lp DefaultLiquidityProvider) GetTokens() []*common.Token](#func---defaultliquidityprovider--gettokens)
+  - [func (lp DefaultLiquidityProvider) SetupTokenPairs(policies []string)](#func---defaultliquidityprovider--setuptokenpairs)
+  - [func (lp DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool](#func---defaultliquidityprovider--hastokenpair)
+  - [func (lp DefaultLiquidityProvider) GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error)](#func---defaultliquidityprovider--getliquidityprovideraddr)
+  - [func (lp DefaultLiquidityProvider) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) (int64, error)](#func---defaultliquidityprovider--askforfreezing)
+  - [func (lp DefaultLiquidityProvider) FreezeLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error](#func---defaultliquidityprovider--freezeliquidity)
+  - [func (lp DefaultLiquidityProvider) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error](#func---defaultliquidityprovider--unfreezeliquidity)
+  - [func (lp *DefaultLiquidityProvider) DstTransfer(transferNative bool, _quote rfq.RFQQuote, opts ...eth.TxOption) (eth.Hash, error)](#func---defaultliquidityprovider--dsttransfer)
+  - [func (lp *DefaultLiquidityProvider) SrcRelease(_quote rfq.RFQQuote, _execMsgCallData []byte, opts ...eth.TxOption) (eth.Hash, error)](#func---defaultliquidityprovider--srcrelease)
 - [type LiqManager](#type-liqmanager)
   - [func NewLiqManager(configs []*LPConfig) *LiqManager](#func-newliqmanager)
-  - [func (lm *LiqManager) GetChains() []uint64](#func-liqmanager-getchains)
+  - [func (lm *LiqManager) GetChains() []uint64](#func---liqmanager--getchains)
   - [func (lm *LiqManager) GetTokens() map[uint64][]*common.Token](#func---liqmanager--gettokens)
   - [func (lm *LiqManager) GetLPAddr(chainId uint64) (eth.Addr, error)](#func---liqmanager--getlpaddr)
   - [func (lm *LiqManager) GetLiqNeedApprove(chainId uint64) ([]*common.Token, []*big.Int, error)](#func---liqmanager--getliqneedapprove)
@@ -280,14 +280,14 @@ See [NewServer](#func-newserver) for more information on creating server.
 - [interface AmountCalculator](#interface-amountcalculator)
 - [type DefaultAmtCalculator](#type-defaultamtcalculator)
   - [func NewDefaultAmtCalculator(feeConfig *FeeConfig, querier ChainQuerier, priceProvider PriceProvider) *DefaultAmtCalculator](#func-newdefaultamtcalculator)
-  - [func (ac *DefaultAmtCalculator) SetDstGasCost(gasCost uint64)](#func-defaultamtcalculator-setdstgascost)
-  - [func (ac *DefaultAmtCalculator) SetSrcGasCost(gasCost uint64)](#func-defaultamtcalculator-setsrcgascost)
-  - [func (ac *DefaultAmtCalculator) SetGlobalFeePerc(feePerc uint32) error](#func-defaultamtcalculator-setglobalfeeperc)
-  - [func (ac *DefaultAmtCalculator) SetPerChainPairFeePercOverride(overrides []*ChainOverride) error](#func-defaultamtcalculator-setperchainpairfeepercoverride)
-  - [func (ac *DefaultAmtCalculator) SetPerTokenPairFeePercOverride(overrides []*TokenOverride) error](#func-defaultamtcalculator-setpertokenpairfeepercoverride)
-  - [func (ac *DefaultAmtCalculator) SetGasPrice(prices []*GasPrice)](#func-defaultamtcalculator-setgasprice)
-  - [func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn *common.Token, tokenOut *common.Token, amountIn *big.Int) (amountOut *big.Int, releaseAmt *big.Int, fee *big.Int, err error)](#func-defaultamtcalculator-calrecvamt)
-  - [func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn *common.Token, tokenOut *common.Token, amountOut *big.Int) (*big.Int, *big.Int, *big.Int, error)](#func-defaultamtcalculator-calsendamt)
+  - [func (ac *DefaultAmtCalculator) SetDstGasCost(gasCost uint64)](#func---defaultamtcalculator--setdstgascost)
+  - [func (ac *DefaultAmtCalculator) SetSrcGasCost(gasCost uint64)](#func---defaultamtcalculator--setsrcgascost)
+  - [func (ac *DefaultAmtCalculator) SetGlobalFeePerc(feePerc uint32) error](#func---defaultamtcalculator--setglobalfeeperc)
+  - [func (ac *DefaultAmtCalculator) SetPerChainPairFeePercOverride(overrides []*ChainOverride) error](#func---defaultamtcalculator--setperchainpairfeepercoverride)
+  - [func (ac *DefaultAmtCalculator) SetPerTokenPairFeePercOverride(overrides []*TokenOverride) error](#func---defaultamtcalculator--setpertokenpairfeepercoverride)
+  - [func (ac *DefaultAmtCalculator) SetGasPrice(prices []*GasPrice)](#func---defaultamtcalculator--setgasprice)
+  - [func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn *common.Token, tokenOut *common.Token, amountIn *big.Int) (amountOut *big.Int, releaseAmt *big.Int, fee *big.Int, err error)](#func---defaultamtcalculator--calrecvamt)
+  - [func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn *common.Token, tokenOut *common.Token, amountOut *big.Int) (*big.Int, *big.Int, *big.Int, error)](#func---defaultamtcalculator--calsendamt)
 - [interface RequestSigner](#interface-requestsigner)
 - [type DefaultRequestSigner](#type-defaultrequestsigner)
   - [func NewRequestSigner](#func-newrequestsigner)
@@ -312,10 +312,10 @@ See [NewServer](#func-newserver) for more information on creating server.
 #### (rfqmm)type Client
 ```go
 type Client struct {
-	proto.ApiClient
-	// mm application url
-	server string
-	conn   *grpc.ClientConn
+    proto.ApiClient
+    // mm application url
+    server string
+    conn   *grpc.ClientConn
 }
 ```
 #### (rfqmm)func NewClient
@@ -345,7 +345,7 @@ Example:
 request := &rfqmmproto.PriceRequest{SrcToken: srcToken, DstToken: dstToken, SrcAmount: srcAmount, DstAmount: "", DstNative: false}
 resp, err := client.Price(context.Background(), request)
 if err != nil {
-// handle error
+    // handle error
 }
 ```
 
@@ -362,7 +362,7 @@ Example:
 request := &rfqmmproto.QuoteRequest{Price: price, Quote: quote, DstNative: false}
 resp, err := client.Quote(context.Background(), request)
 if err != nil {
-// handle error
+    // handle error
 }
 ```
 
@@ -464,7 +464,7 @@ Example:
 ```go
 ok := server.ValidateQuote(quote, sig)
 if !ok {
-	// handle invalid quote
+    // handle invalid quote
 }
 ```
 
@@ -533,7 +533,7 @@ Basic flow:
 ```go
 func (s *Server) SignQuoteHash(ctx context.Context, request *rfqmmproto.SignQuoteHashRequest) (response *rfqmmproto.SignQuoteHashResponse, err error)
 ```
-SignQuoteHash service is a default implementation of responding at a [Client.SignQuoteHash](#func---client--signquotehash) request.
+SignQuoteHash service is a default implementation of responding at a Client.SignQuoteHash request.
 
 Basic flow:
 * check if self is a light versioned market maker
@@ -547,7 +547,7 @@ Basic flow:
 ```go
 func (s *Server) Tokens(ctx context.Context, request *rfqmmproto.TokensRequest) (response *rfqmmproto.TokensResponse, err error)
 ```
-Tokens service is a default implementation of responding at a [Client.Tokens](#func---client--tokens) request.
+Tokens service is a default implementation of responding at a Client.Tokens request.
 
 Basic flow:
 * return all supported tokens
@@ -555,23 +555,23 @@ Basic flow:
 #### interface ChainQuerier
 ```go
 type ChainQuerier interface {
-	GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
-	GetMsgFee(chainId uint64) (*big.Int, error)
-	GetGasPrice(chainId uint64) (*big.Int, error)
-	GetNativeWrap(chainId uint64) (*common.Token, error)
-	GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error)
-	GetNativeBalance(chainId uint64, accoun eth.Addr) (*big.Int, error)
-	GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)
-	VerifyRfqEvent(chainId uint64, tx eth.Hash, evName string) (bool, error)
+    GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
+    GetMsgFee(chainId uint64) (*big.Int, error)
+    GetGasPrice(chainId uint64) (*big.Int, error)
+    GetNativeWrap(chainId uint64) (*common.Token, error)
+    GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error)
+    GetNativeBalance(chainId uint64, accoun eth.Addr) (*big.Int, error)
+    GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)
+    VerifyRfqEvent(chainId uint64, tx eth.Hash, evName string) (bool, error)
 }
 ```
 
 #### type ChainManager
 ```go
 type ChainManager struct {
-	chains   map[uint64]*Chain
-	// event id of RFQ contract event
-	eventIDs map[string]eth.Hash
+    chains   map[uint64]*Chain
+    // event id of RFQ contract event
+    eventIDs map[string]eth.Hash
 }
 ```
 ChainManager is a default implementation of ChainQuerier.
@@ -656,7 +656,7 @@ Example:
 // Goerli -> BSC Testnet. amount with decimals
 rfqFee, err := cm.GetRfqFee(5, 97, 1000000000)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -670,7 +670,7 @@ Example:
 ```go
 msgFee, err := cm.GetMsgFee(5)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -685,7 +685,7 @@ Example:
 // get chain of Goerli
 gasPrice, err := cm.GetGasPrice(5)
 if err != nil || gasPrice.Sign() == 0 {
-	// handle err
+    // handle err
 }
 ```
 
@@ -699,7 +699,7 @@ Example:
 ```go
 native, err := cm.GetNativeWrap(5)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -713,7 +713,7 @@ Example:
 ```go
 balance, err := cm.GetERC20Balance(5, token, account)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -727,7 +727,7 @@ Example:
 ```go
 balance, err := cm.GetNativeBalance(5, account)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -755,33 +755,33 @@ Example:
 ```go
 ok, err := cm.VerifyRfqEvent(5, txHash, "SrcDeposited")
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
 #### interface LiquidityProvider
 ```go
 type LiquidityProvider interface {
-	// IsPaused returns whether the LiquidityProvider is paused or not
-	IsPaused() bool
-	// GetTokens returns a list of all supported tokens
-	GetTokens() []*common.Token
+    // IsPaused returns whether the LiquidityProvider is paused or not
+    IsPaused() bool
+    // GetTokens returns a list of all supported tokens
+    GetTokens() []*common.Token
     // SetupTokenPairs sets up supported token pairs based on a given policy list.
     SetupTokenPairs(policies []string)
     // HasTokenPair check if a given token pair is supported
     HasTokenPair(srcToken, dstToken *common.Token) bool
-	// GetLiquidityProviderAddr returns the address of liquidity provider on specified chain
-	GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error)
-	// AskForFreezing checks if there is sufficient liquidity for specified token on specified chain and returns freeze time
-	AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) (int64, error)
-	// FreezeLiquidity will freeze a certain liquidity for specified amount until specified timestamp with an index of hash.
-	FreezeLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error
-	// UnfreezeLiquidity will try to unfreeze a certain liquidity with specified hash.
-	UnfreezeLiquidity(chainId uint64, hash eth.Hash) error
-	// DstTransfer should send tx on dstChain to transfer dstToken to user
-	DstTransfer(transferNative bool, _quote rfq.RFQQuote, opts ...ethutils.TxOption) (eth.Hash, error)
-	// SrcRelease should send tx on srcChain to release srcToken to mm
-	SrcRelease(_quote rfq.RFQQuote, _execMsgCallData []byte, opts ...ethutils.TxOption) (eth.Hash, error)
+    // GetLiquidityProviderAddr returns the address of liquidity provider on specified chain
+    GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error)
+    // AskForFreezing checks if there is sufficient liquidity for specified token on specified chain and returns freeze time
+    AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) (int64, error)
+    // FreezeLiquidity will freeze a certain liquidity for specified amount until specified timestamp with an index of hash.
+    FreezeLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error
+    // UnfreezeLiquidity will try to unfreeze a certain liquidity with specified hash.
+    UnfreezeLiquidity(chainId uint64, hash eth.Hash) error
+    // DstTransfer should send tx on dstChain to transfer dstToken to user
+    DstTransfer(transferNative bool, _quote rfq.RFQQuote, opts ...ethutils.TxOption) (eth.Hash, error)
+    // SrcRelease should send tx on srcChain to release srcToken to mm
+    SrcRelease(_quote rfq.RFQQuote, _execMsgCallData []byte, opts ...ethutils.TxOption) (eth.Hash, error)
 }
 ```
 
@@ -859,7 +859,7 @@ Example:
 ```go
 addr, err := lp.GetLiquidityProviderAddr(5)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -874,7 +874,7 @@ Example:
 ```go
 freezeTime, err := lm.AskForFreezing(5, token, 1000000)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -891,7 +891,7 @@ Example:
 // given a quote of type rfqmmproto.Quote
 err := lp.FreezeLiquidity(quote.GetDstChainId(), quote.DstToken.GetAddr(), quote.GetDstAmt(), quote.SrcDeadline, quote.GetQuoteHash(), false)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -906,7 +906,7 @@ Example:
 // given a quote of type rfqmmproto.Quote
 err := lp.UnfreezeLiquidity(quote.GetDstChainId(), quote.GetQuoteHash())
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -921,7 +921,7 @@ Example:
 // given a quote of type rfqmmproto.Quote
 txHash, err := lp.DstTransfer(false, quote.ToQuoteOnChain())
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -936,14 +936,14 @@ Example:
 // given a quote of type rfqmmproto.Quote
 txHash, err := lp.SrcRelease(quote.ToQuoteOnChain(), _execMsgCallData)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
 #### type LiqManager
 ```go
 type LiqManager struct {
-	iLPs map[uint64]*internalLP
+    iLPs map[uint64]*internalLP
 }
 ```
 LiqManager is an example implementation of liquidity and provider account management.
@@ -952,7 +952,7 @@ LiqManager is an example implementation of liquidity and provider account manage
 ```go
 type LPConfig struct {
     ChainId       uint64
-	Address       string
+    Address       string
     Keystore      string
     Passphrase    string
     Liqs          []*LiquidityConfig
@@ -975,7 +975,7 @@ Example:
 var lpConfig []*rfqmm.LPConfig
 err := viper.UnmarshalKey("lp", &lpConfig)
 if err != nil {
-	// handle err
+    // handle err
 }
 lm := rfqmm.NewLiqManager(lpConfig)
 ```
@@ -1002,7 +1002,7 @@ Example:
 ```go
 addr, err := lm.GetLPAddr(5)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1016,10 +1016,10 @@ Example:
 ```go
 tokens, approveAmt, err := lm.GetLiqNeedApprove(5)
 if err != nil {
-	// handle err
+    // handle err
 }
 for i, token := range tokens {
-	// approve approveAmt[i] of token to RFQ contract
+    // approve approveAmt[i] of token to RFQ contract
 }
 ```
 
@@ -1034,7 +1034,7 @@ Example:
 ```go
 freezeTime, err := lm.AskForFreezing(5, token, 1000000)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1050,7 +1050,7 @@ Example:
 // given a quote of type rfqmmproto.Quote
 err := lm.ReserveLiquidity(quote.GetDstChainId(), quote.DstToken.GetAddr(), quote.GetDstAmt(), quote.SrcDeadline, quote.GetQuoteHash())
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1096,7 +1096,7 @@ Example:
 // given a quote of type rfqmmproto.Quote
 err := lm.TransferOutLiquidity(quote.GetDstChainId(), quote.DstToken.GetAddr(), quote.GetDstAmt(), quote.GetQuoteHash())
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1111,7 +1111,7 @@ Example:
 // given a quote of type rfqmmproto.Quote
 err := lm.ReleaseInLiquidity(quote.GetSrcChainId(), quote.SrcToken.GetAddr(), quote.GetSrcAmt())
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1126,7 +1126,7 @@ Example:
 // given a quote of type rfqmmproto.Quote
 releaseNative, err := lm.ReleaseNative(quote.GetSrcChainId())
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1153,15 +1153,15 @@ Example:
 ```go
 addr, signer, err := lm.GetSigner(5)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
 #### interface AmountCalculator
 ```go
 type AmountCalculator interface {
-	CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn *big.Int) (recvAmt, releaseAmt, fee *big.Int, err error)
-	CalSendAmt(tokenIn, tokenOut *common.Token, amountOut *big.Int) (sendAmt, releaseAmt, fee *big.Int, err error)
+    CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn *big.Int) (recvAmt, releaseAmt, fee *big.Int, err error)
+    CalSendAmt(tokenIn, tokenOut *common.Token, amountOut *big.Int) (sendAmt, releaseAmt, fee *big.Int, err error)
 }
 ```
 
@@ -1224,7 +1224,7 @@ Example:
 feeConfig := new(rfqmm.FeeConfig)
 err = viper.UnmarshalKey("fee", feeConfig)
 if err != nil {
-	// handle err
+    // handle err
 }
 cm := rfqmm.NewChainManager(chainConfig)
 // prepare your Price Provider
@@ -1256,7 +1256,7 @@ Example:
 // set global fee percentage to 0.1%
 err := ac.SetGlobalFeePerc(1000)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1271,7 +1271,7 @@ Example:
 overrides := []*ChainOverride{{5,97,2000}}
 err := ac.SetPerChainPairFeePercOverride(overrides)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1286,7 +1286,7 @@ Example:
 overrides := []*TokenOverride{{5,97,"0x123...","0x234...",2000}}
 err := ac.SetPerTokenPairFeePercOverride(overrides)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1314,7 +1314,7 @@ Example:
 // given a request of type rfqmm.PriceRequest
 receiveAmount, releaseAmount, fee, err = ac.CalRecvAmt(request.SrcToken, request.DstToken, request.GetSrcAmount())
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1332,23 +1332,23 @@ Example:
 // given a request of type rfqmm.PriceRequest
 receiveAmount, releaseAmount, fee, err = ac.CalSendAmt(request.SrcToken, request.DstToken, request.GetDstAmount())
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
 #### interface RequestSigner
 ```go
 type RequestSigner interface {
-	Sign(data []byte) ([]byte, error)
-	Verify(data, sig []byte) bool
+    Sign(data []byte) ([]byte, error)
+    Verify(data, sig []byte) bool
 }
 ```
 
 #### type DefaultRequestSigner
 ```go
 type DefaultRequestSigner struct {
-	Signer  ethutils.Signer
-	Address eth.Addr
+    Signer  ethutils.Signer
+    Address eth.Addr
 }
 ```
 DefaultRequestSigner is a default implementation of interface RequestSigner.
@@ -1375,7 +1375,7 @@ Example:
 ```go
 sig, err = rs.Sign(data)
 if err != nil {
-	// handle err
+    // handle err
 }
 ```
 
@@ -1389,14 +1389,14 @@ Example:
 ```go
 ok = rs.Verify(data, sig)
 if !ok {
-	// handle case for bad sig
+    // handle case for bad sig
 }
 ```
 
 #### interface PriceProvider
 ```go
 type PriceProvider interface {
-	GetPrice(token *common.Token) (float64, error)
+    GetPrice(token *common.Token) (float64, error)
 }
 ```
 PriceProvider is an important part for creating a [DefaultAmtCalculator](#type-defaultamtcalculator)
