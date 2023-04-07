@@ -295,9 +295,6 @@ See [NewServer](#func-newserver) for more information on creating server.
   - [func (rs *DefaultRequestSigner) Verify(data, sig []byte) bool](#func---defaultrequestsigner--verify)
 - [interface PriceProvider](#interface-priceprovider)
 
-
-
-
 ### Protos
 - [message Price](#message-price)
 - [message Quote](#message-quote)
@@ -307,6 +304,10 @@ See [NewServer](#func-newserver) for more information on creating server.
 - [message PriceResponse](#message-priceresponse)
 - [message QuoteRequest](#message-quoterequest)
 - [message QuoteResponse](#message-quoteresponse)
+- [message SignQuoteHashRequest](#message-signquotehashrequest)
+- [message SignQuoteHashResponse](#message-signquotehashresponse)
+- [message TokensRequest](#message-tokensrequest)
+- [message TokensResponse](#message-tokensresponse)
 
 #### (rfqmm)type Client
 ```go
@@ -1530,5 +1531,35 @@ import "common/error.proto";
 message QuoteResponse {
   common.Err err = 1;
   string quote_sig = 2;
+}
+```
+#### message SignQuoteHashRequest
+```protobuf
+message SignQuoteHashRequest {
+  Quote quote = 1;
+  string src_deposit_tx_hash = 2;
+  string quote_sig = 3;
+}
+```
+#### message SignQuoteHashResponse
+```protobuf
+import "common/error.proto";
+message SignQuoteHashResponse {
+  common.Err err = 1;
+  bytes sig = 2;
+}
+```
+#### message TokensRequest
+```protobuf
+message TokensRequest {
+}
+```
+#### message TokensResponse
+```protobuf
+import "common/error.proto";
+import "common/token.proto";
+message TokensResponse {
+  common.Err err = 1;
+  repeated common.Token tokens = 2;
 }
 ```
