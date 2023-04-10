@@ -286,8 +286,8 @@ See [NewServer](#func-newserver) for more information on creating server.
   - [func (ac *DefaultAmtCalculator) SetPerChainPairFeePercOverride(overrides []*ChainOverride) error](#func---defaultamtcalculator--setperchainpairfeepercoverride)
   - [func (ac *DefaultAmtCalculator) SetPerTokenPairFeePercOverride(overrides []*TokenOverride) error](#func---defaultamtcalculator--setpertokenpairfeepercoverride)
   - [func (ac *DefaultAmtCalculator) SetGasPrice(prices []*GasPrice)](#func---defaultamtcalculator--setgasprice)
-  - [func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn *common.Token, tokenOut *common.Token, amountIn *big.Int) (amountOut *big.Int, releaseAmt *big.Int, fee *big.Int, err error)](#func---defaultamtcalculator--calrecvamt)
-  - [func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn *common.Token, tokenOut *common.Token, amountOut *big.Int) (*big.Int, *big.Int, *big.Int, error)](#func---defaultamtcalculator--calsendamt)
+  - [func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn *common.Token, tokenOut *common.Token, amountIn, baseFeeForLMM *big.Int, isLightMM bool) (amountOut *big.Int, releaseAmt *big.Int, fee *big.Int, err error)](#func---defaultamtcalculator--calrecvamt)
+  - [func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn *common.Token, tokenOut *common.Token, amountOut, baseFeeForLMM *big.Int, isLightMM bool) (*big.Int, *big.Int, *big.Int, error)](#func---defaultamtcalculator--calsendamt)
 - [interface RequestSigner](#interface-requestsigner)
 - [type DefaultRequestSigner](#type-defaultrequestsigner)
   - [func NewRequestSigner](#func-newrequestsigner)
@@ -555,13 +555,23 @@ Basic flow:
 #### interface ChainQuerier
 ```go
 type ChainQuerier interface {
+    // GetRfqContract returns the address of RFQ contract on specific Chain.
+    GetRfqContract(chainId uint64) (eth.Addr, error)
+    // GetRfqFee returns RFQ protocol fee amount by querying RFQ contract.
     GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
+    // GetMsgFee returns required native token amount for sending a message with constant length 32
     GetMsgFee(chainId uint64) (*big.Int, error)
+    // GetGasPrice returns the suggested gas price on specific chain.
     GetGasPrice(chainId uint64) (*big.Int, error)
+    // GetNativeWrap returns configured native token struct of specific chain.
     GetNativeWrap(chainId uint64) (*common.Token, error)
+    // GetERC20Balance returns requested ERC20 token balance.
     GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error)
+    // GetNativeBalance returns requested native token balance.
     GetNativeBalance(chainId uint64, accoun eth.Addr) (*big.Int, error)
+    // GetQuoteStatus returns current status on chain of a specific quote.
     GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)
+    // VerifyRfqEvent returns whether expected event was emitted within specific tx on specific chain.
     VerifyRfqEvent(chainId uint64, tx eth.Hash, evName string) (bool, error)
 }
 ```
@@ -649,7 +659,7 @@ if err != nil {
 ```go
 func (cm *ChainManager) GetRfqFee(srcChainId uint64, dstChainId uint64, amount *big.Int) (*big.Int, error)
 ```
-GetRfqFee Method get RFQ protocol fee amount by querying RFQ contract.
+GetRfqFee Method gets RFQ protocol fee amount by querying RFQ contract.
 
 Example:
 ```go
@@ -664,7 +674,7 @@ if err != nil {
 ```go
 func (cm *ChainManager) GetMsgFee(chainId uint64) (*big.Int, error)
 ```
-GetMsgFee Method get required native token amount for sending a message with constant length 32.
+GetMsgFee Method gets required native token amount for sending a message with constant length 32.
 
 Example:
 ```go
@@ -693,7 +703,7 @@ if err != nil || gasPrice.Sign() == 0 {
 ```go
 func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error)
 ```
-GetNativeWrap Method get configured native token struct of specific chain.
+GetNativeWrap Method gets configured native token struct of specific chain.
 
 Example:
 ```go
@@ -707,7 +717,7 @@ if err != nil {
 ```go
 func (cm *ChainManager) GetERC20Balance(chainId uint64, token eth.Addr, account eth.Addr) (*big.Int, error)
 ```
-GetERC20Balance Method query and return requested ERC20 token balance.
+GetERC20Balance Method queries and returns requested ERC20 token balance.
 
 Example:
 ```go
@@ -721,7 +731,7 @@ if err != nil {
 ```go
 func (cm *ChainManager) GetNativeBalance(chainId uint64, account eth.Addr) (*big.Int, error)
 ```
-GetNativeBalance Method query and return requested native token balance.
+GetNativeBalance Method queries and returns requested native token balance.
 
 Example:
 ```go
@@ -735,7 +745,7 @@ if err != nil {
 ```go
 func (cm *ChainManager) GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)
 ```
-GetQuoteStatus Method query and return current status on chain of a specific quote.
+GetQuoteStatus Method queries and returns current status on chain of a specific quote.
 
 Example:
 ```go
@@ -749,7 +759,7 @@ if err != nil {
 ```go
 func (cm *ChainManager) VerifyRfqEvent(chainId uint64, tx eth.Hash, evName string) (bool, error)
 ```
-VerifyRfqEvent Method try to find expected event within specific tx on specific chain.
+VerifyRfqEvent Method tries to find expected event within specific tx on specific chain.
 
 Example:
 ```go
@@ -1160,8 +1170,16 @@ if err != nil {
 #### interface AmountCalculator
 ```go
 type AmountCalculator interface {
-    CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn *big.Int) (recvAmt, releaseAmt, fee *big.Int, err error)
-    CalSendAmt(tokenIn, tokenOut *common.Token, amountOut *big.Int) (sendAmt, releaseAmt, fee *big.Int, err error)
+    // CalRecvAmt Method returns
+    //   - recvAmt: how much `tokenOut` will be received by User
+    //   - releaseAmt: how much `tokenIn` will be received by MM
+    //   - fee: how much `tokenIn` is charged as fee in total.
+    CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFee *big.Int, isLightMM bool) (recvAmt, releaseAmt, fee *big.Int, err error)
+    // CalSendAmt Method returns
+    //   - sendAmt: how much `tokenIn` should be sent by User 
+    //  - releaseAmt: how much `tokenIn` will be received by MM
+    //   - fee: how much `tokenIn` is charged as fee in total.
+    CalSendAmt(tokenIn, tokenOut *common.Token, amountOut, baseFee *big.Int, isLightMM bool) (sendAmt, releaseAmt, fee *big.Int, err error)
 }
 ```
 
@@ -1304,7 +1322,7 @@ ac.SetGasPrice(gasPrices)
 
 #### func (*DefaultAmtCalculator) CalRecvAmt
 ```go
-func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn *common.Token, tokenOut *common.Token, amountIn *big.Int) (amountOut *big.Int, releaseAmt *big.Int, fee *big.Int, err error)
+func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn *common.Token, tokenOut *common.Token, amountIn, baseFeeForLMM *big.Int, isLightMM bool) (amountOut *big.Int, releaseAmt *big.Int, fee *big.Int, err error)
 ```
 CalRecvAmt Method estimates how much `tokenOut` will be received by User, how much `tokenIn` will be received by MM and 
 how much `tokenIn` is charged as fee in total.
@@ -1312,7 +1330,9 @@ how much `tokenIn` is charged as fee in total.
 Example:
 ```go
 // given a request of type rfqmm.PriceRequest
-receiveAmount, releaseAmount, fee, err = ac.CalRecvAmt(request.SrcToken, request.DstToken, request.GetSrcAmount())
+srcAmt, _ := new(big.Int).SetString(request.SrcAmount, 10)
+baseFee, _ := new(big.Int).SetString(request.BaseFee, 10)
+receiveAmount, releaseAmount, fee, err = ac.CalRecvAmt(request.SrcToken, request.DstToken, srcAmt, baseFee, /*not light mm*/false)
 if err != nil {
     // handle err
 }
@@ -1320,7 +1340,7 @@ if err != nil {
 
 #### func (*DefaultAmtCalculator) CalSendAmt
 ```go
-func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn *common.Token, tokenOut *common.Token, amountOut *big.Int) (*big.Int, *big.Int, *big.Int, error)
+func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn *common.Token, tokenOut *common.Token, amountOut, baseFeeForLMM *big.Int, isLightMM bool) (*big.Int, *big.Int, *big.Int, error)
 ```
 > Not yet implemented.
 
@@ -1330,7 +1350,9 @@ much `tokenIn` is charged as fee in total.
 Example:
 ```go
 // given a request of type rfqmm.PriceRequest
-receiveAmount, releaseAmount, fee, err = ac.CalSendAmt(request.SrcToken, request.DstToken, request.GetDstAmount())
+dstAmt, _ := new(big.Int).SetString(request.DstAmount, 10)
+baseFee, _ := new(big.Int).SetString(request.BaseFee, 10)
+receiveAmount, releaseAmount, fee, err = ac.CalSendAmt(request.SrcToken, request.DstToken, dstAmt, baseFee, /*not light mm*/false)
 if err != nil {
     // handle err
 }
@@ -1498,6 +1520,8 @@ message PriceRequest {
   string dst_amount = 4;
   // indicates whether the user wants native token on the dst chain (only applicable if the dst token is a native wrap)
   bool dst_native = 5;
+  // fee to cover gas cost, used for light mm
+  string base_fee = 6;
 }
 ```
 #### message PriceResponse

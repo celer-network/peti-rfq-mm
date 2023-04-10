@@ -65,7 +65,8 @@ func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (respon
 	if request.SrcAmount == "" {
 		// todo, not supported now
 		receiveAmount.SetString(request.DstAmount, 10)
-		sendAmount, releaseAmount, fee, err = s.AmountCalculator.CalSendAmt(request.SrcToken, request.DstToken, receiveAmount)
+		baseFee.SetString(request.BaseFee, 10)
+		sendAmount, releaseAmount, fee, err = s.AmountCalculator.CalSendAmt(request.SrcToken, request.DstToken, receiveAmount, baseFee, s.Config.LightMM)
 		if err != nil {
 			return &proto.PriceResponse{Err: err.(*proto.Err).ToCommonErr()}, nil
 		}
@@ -162,12 +163,12 @@ func (s *Server) Quote(ctx context.Context, request *proto.QuoteRequest) (respon
 // SignQuoteHash service is a default implementation of responding at a Client.SignQuoteHash request.
 //
 // Basic flow:
-//  * check if self is a light versioned market maker
-//  * check quote sig
-//  * check dst deadline of quote
-//  * check deposit tx of user is mined on src chain and expected event is emitted
-//  * check quote status within rfq contract on src chain is 1(SrcDeposited)
-//  * sign quote
+//   - check if self is a light versioned market maker
+//   - check quote sig
+//   - check dst deadline of quote
+//   - check deposit tx of user is mined on src chain and expected event is emitted
+//   - check quote status within rfq contract on src chain is 1(SrcDeposited)
+//   - sign quote
 func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
 	if !s.Config.LightMM {
 		return signQuoteHashArgumentErr("this api only works for light mm")
@@ -214,7 +215,7 @@ func signQuoteHashArgumentErr(reason string) (*proto.SignQuoteHashResponse, erro
 // Tokens service is a default implementation of responding at a Client.Tokens request.
 //
 // Basic flow:
-//  * return all supported tokens
+//   - return all supported tokens
 func (s *Server) Tokens(ctx context.Context, request *proto.TokensRequest) (*proto.TokensResponse, error) {
 	return &proto.TokensResponse{
 		Tokens: s.LiquidityProvider.GetTokens(),

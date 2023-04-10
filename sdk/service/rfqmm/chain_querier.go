@@ -112,7 +112,7 @@ func (cm *ChainManager) GetRfqContract(chainId uint64) (eth.Addr, error) {
 	return chain.RfqAddress, nil
 }
 
-// GetRfqFee Method get RFQ protocol fee amount by querying RFQ contract.
+// GetRfqFee Method gets RFQ protocol fee amount by querying RFQ contract.
 func (cm *ChainManager) GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error) {
 	chain, err := cm.GetChain(srcChainId)
 	if err != nil {
@@ -121,7 +121,7 @@ func (cm *ChainManager) GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int
 	return chain.GetRfqFee(nil, dstChainId, amount)
 }
 
-// GetMsgFee Method get required native token amount for sending a message with constant length 32
+// GetMsgFee Method gets required native token amount for sending a message with constant length 32
 func (cm *ChainManager) GetMsgFee(chainId uint64) (*big.Int, error) {
 	chain, err := cm.GetChain(chainId)
 	if err != nil {
@@ -130,7 +130,7 @@ func (cm *ChainManager) GetMsgFee(chainId uint64) (*big.Int, error) {
 	return chain.MsgFee, nil
 }
 
-// GetNativeWrap Method get configured native token struct of specific chain.
+// GetNativeWrap Method gets configured native token struct of specific chain.
 func (cm *ChainManager) GetNativeWrap(chainId uint64) (*common.Token, error) {
 	chain, err := cm.GetChain(chainId)
 	if err != nil {
@@ -148,7 +148,7 @@ func (cm *ChainManager) GetGasPrice(chainId uint64) (*big.Int, error) {
 	return chain.GetGasPrice(), nil
 }
 
-// GetERC20Balance Method query and return requested ERC20 token balance.
+// GetERC20Balance Method queries and returns requested ERC20 token balance.
 func (cm *ChainManager) GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error) {
 	chain, err := cm.GetChain(chainId)
 	if err != nil {
@@ -157,7 +157,7 @@ func (cm *ChainManager) GetERC20Balance(chainId uint64, token, account eth.Addr)
 	return chain.GetERC20Balance(nil, token, account)
 }
 
-// GetNativeBalance Method query and return requested native token balance.
+// GetNativeBalance Method queries and returns requested native token balance.
 func (cm *ChainManager) GetNativeBalance(chainId uint64, account eth.Addr) (*big.Int, error) {
 	chain, err := cm.GetChain(chainId)
 	if err != nil {
@@ -166,7 +166,7 @@ func (cm *ChainManager) GetNativeBalance(chainId uint64, account eth.Addr) (*big
 	return chain.GetNativeBalance(account)
 }
 
-// GetQuoteStatus Method query and return current status on chain of a specific quote.
+// GetQuoteStatus Method queries and returns current status on chain of a specific quote.
 func (cm *ChainManager) GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error) {
 	chain, err := cm.GetChain(chainId)
 	if err != nil {
@@ -175,7 +175,7 @@ func (cm *ChainManager) GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint
 	return chain.GetQuoteStatus(nil, quoteHash)
 }
 
-// VerifyRfqEvent Method try to find expected event within specific tx on specific chain.
+// VerifyRfqEvent Method tries to find expected event within specific tx on specific chain.
 func (cm *ChainManager) VerifyRfqEvent(chainId uint64, tx eth.Hash, evName string) (bool, error) {
 	chain, err := cm.GetChain(chainId)
 	if err != nil {

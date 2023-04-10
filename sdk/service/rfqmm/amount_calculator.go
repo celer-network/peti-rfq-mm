@@ -271,7 +271,11 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 	return
 }
 
-func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn, tokenOut *common.Token, amountOut *big.Int) (*big.Int, *big.Int, *big.Int, error) {
+// CalSendAmt Method returns
+//   - amountIn: how much `tokenIn` should be sent by User
+//   - releaseAmt: how much `tokenIn` will be received by MM
+//   - fee: how much `tokenIn` is charged as fee in total.
+func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn, tokenOut *common.Token, amountOut, baseFeeForLMM *big.Int, isLightMM bool) (amountIn *big.Int, releaseAmt *big.Int, fee *big.Int, err error) {
 	// TODO
 	return nil, nil, nil, fmt.Errorf("not supported now")
 }

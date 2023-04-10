@@ -310,9 +310,9 @@ symbol = "ETH"
 decimals = 18
 freezetime = 200
 ```
-You can use different account for each chain or just use one account for all chains. `keystore` should set to path of your
-keystore file relative to `.peti-rfq-mm` floder.
-If you're going to use a contract as a liquidity provider, let `keystore` be empty.
+You can use different account for each chain or just use one account for all chains. For a local account, fill `keystore` and `passphrase`. `keystore` should be set to path of your
+keystore file relative to `.peti-rfq-mm` floder. For an external account, read the following guide.
+>**EXTERNAL ACCOUNT GUIDE.** First of all, this is a feature of light-MM. Since default MM will send tx for itself, a `lp` with hot key is required. (*External accounts as `lp`s with one specific local account for sending txs is possible. Customize your own MM and welcome any PRs*.) To use an external account(e.g. a contract that holds tokens), let `keystore` and `passphrase` be empty and set `address` to the address of the external account. **Most importantly, somehow let this external account call [registerAllowedSigner](https://github.com/celer-network/sgn-v2-contracts/blob/9ce8ffe13389415a53e2c38838da1b99689d40f0/contracts/message/apps/RFQ.sol#L316) of RFQ contract on specific chain with the address of `requestsigner`.**
 
 For each token, `address`, `symbol`, `decimals` and `freezetime` are required, while `amount` and `approve` are optional.
 
@@ -419,9 +419,10 @@ later updates of default MM application.
 
 Get `rfqserver.url` at [Information](#information) and fill up your API key.
 
-As mentioned before, MM should be able to sign any data and verify own signatures. Within default MM application, one 
-of the accounts configured in `lp.toml` is used as request signer to sign price and quote response. The chosen account is
-identified by `requestsigner.chainid` of which value matches with `lp.chainid`.
+As mentioned before, MM should be able to sign any data and verify own signatures. Beside of that, MM should also be able to sign quote hash if it's light versioned. `requestsigner` is just the signer who is responsible for those tasks. To configure this signer, you'll have the following choices:
+- only set `requestsigner.chainid`. Then MM will use the specific `lp` in `lp.toml` as signer. Since it's a signer, this `lp` shouldn't be an external account(`lp.keystore` and `lp.passphrase` are unset).
+- only set `requestsigner.keystore` and `requestsigner.passphrase`. This is needed often when the MM is light versioned and `lp` is external account. 
+>**IMPORTANT.** If the MM is light versioned, this configured signer will be used to sign quote hash for transferring tokens on behalf of `lp`. So make sure that **!! all !!** `lp` whose address is different with address of the configured signer have allowed the signer to do so. To give allowance, let `lp` call [registerAllowedSigner](https://github.com/celer-network/sgn-v2-contracts/blob/9ce8ffe13389415a53e2c38838da1b99689d40f0/contracts/message/apps/RFQ.sol#L316) of RFQ contract on specific chain.
 
 ### Running
 
@@ -468,7 +469,7 @@ tail -f -n30 /var/log/peti-rfq-mm/app/<log-file-with-start-time>.log
 
 The difference between Light MM and Default MM:
 * Light MM will not actively send any request to RFQ server.
-* Light MM will serve more api request.
+* Light MM will serve more api request. One for signing quote hash, and one for providing supported tokens' info.
 * Light MM will not send any tx on chain by himself. Tx for `dstTransfer` and `srcRelease` will be sent by Relayer.
 * Light MM will not charge tx gas cost and message fee. It will charged by Peti protocol.
 
