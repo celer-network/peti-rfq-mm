@@ -29,14 +29,20 @@ const (
 
 var _ LiquidityProvider = &DefaultLiquidityProvider{}
 
+// DefaultLiquidityProvider is a default implementation of interface LiquidityProvider.
 type DefaultLiquidityProvider struct {
-	paused       bool
+	// indicate whether this instance is paused or not
+	paused bool
+	// transactors for sending transactions
 	txrs         map[uint64]*ethutils.Transactor
 	chainManager *ChainManager
 	liqManager   *LiqManager
-	tokenPair    map[string]bool
+	// supported token swap pair
+	// map key is in form of <srcChainId>-<srcTokenAddr>-<srcTokenDecimal>-<dstChainId>-<dstTokenAddr>-<dstTokenDecimal>
+	tokenPair map[string]bool
 }
 
+// NewDefaultLiquidityProvider creates a new instance of DefaultLiquidityProvider.
 func NewDefaultLiquidityProvider(cm *ChainManager, lm *LiqManager) *DefaultLiquidityProvider {
 	lp := &DefaultLiquidityProvider{
 		paused:       false,
@@ -67,11 +73,13 @@ func NewDefaultLiquidityProvider(cm *ChainManager, lm *LiqManager) *DefaultLiqui
 	return lp
 }
 
-func (d DefaultLiquidityProvider) IsPaused() bool {
+// IsPaused Method returns whether the DefaultLiquidityProvider is paused or not.
+func (d *DefaultLiquidityProvider) IsPaused() bool {
 	return d.paused
 }
 
-func (d DefaultLiquidityProvider) GetTokens() []*common.Token {
+// GetTokens Method returns a list of all supported tokens.
+func (d *DefaultLiquidityProvider) GetTokens() []*common.Token {
 	tokensMap := d.liqManager.GetTokens()
 	res := make([]*common.Token, 0)
 	native := eth.Hex2Addr(NativeTokenReference)
@@ -95,7 +103,19 @@ func (d DefaultLiquidityProvider) GetTokens() []*common.Token {
 	return res
 }
 
-// policy str is one of {"All", "Any2Of=<chainId>-<symbol>,<chainId>-<symbol>...", "OneOf=<chainId>-<symbol>,<chainId>-<symbol>"}
+// SetupTokenPairs Method sets up allowed token pairs according to policies.
+// Each policy string should be in one of the following formats:
+//  1. `All`, means all supported tokens are grouped in pairs. If an MM supports 5 tokens on all chains, then this policy
+//     will produce 20 pairs.
+//  2. `Any2Of=<ChainId-TokenSymbol>,...`, means tokens described in policy are grouped in pairs.
+//     >Example: policy str = "Any2Of=5-USDC,5-USDT,97-USDC", token pairs = 5-USDC -> 5-USDT, 5-USDT -> 5-USDC, 5-USDC -> 97-USDC,
+//     97-USDC -> 5-USDC, 5-USDT -> 97-USDC, 5-USDT -> 97-USDC
+//  3. `OneOf=<ChainId-TokenSymbol>,<ChainId-TokenSymbol>`, would produce only one token pair which is from the first token to
+//     the second token.
+//     >Example: policy str = "OneOf=5-USDC,97-USDC", token pair = 5-USDC -> 97-USDC. Reverse direction is forbidden. Use Any2Of to
+//     support both directions.
+//
+// Note that any space is not allowed within any policy string.
 func (d *DefaultLiquidityProvider) SetupTokenPairs(policies []string) {
 	for _, policy := range policies {
 		if policy == TPPolicyAll {
@@ -111,16 +131,20 @@ func (d *DefaultLiquidityProvider) SetupTokenPairs(policies []string) {
 	}
 }
 
-func (d DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool {
+// HasTokenPair Method checks whether a token pair is allowed by this MM.
+func (d *DefaultLiquidityProvider) HasTokenPair(srcToken, dstToken *common.Token) bool {
 	key := genTokenPairKey(srcToken, dstToken)
 	return d.tokenPair[key]
 }
 
-func (d DefaultLiquidityProvider) GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error) {
-	return d.liqManager.GetLiquidityProvider(chainId)
+// GetLiquidityProviderAddr Method returns the address of liquidity provider on specified chain.
+func (d *DefaultLiquidityProvider) GetLiquidityProviderAddr(chainId uint64) (eth.Addr, error) {
+	return d.liqManager.GetLPAddr(chainId)
 }
 
-func (d DefaultLiquidityProvider) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) (int64, error) {
+// AskForFreezing Method checks if there is sufficient liquidity for specified token on specified chain and returns freeze time.
+// Freeze time indicates how long the requested liquidity will be frozen.
+func (d *DefaultLiquidityProvider) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) (int64, error) {
 	if d.paused {
 		return 0, proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_PROVIDER, "liquidity provider is paused due to some serious error")
 	}
@@ -134,7 +158,10 @@ func (d DefaultLiquidityProvider) AskForFreezing(chainId uint64, token eth.Addr,
 	return d.liqManager.AskForFreezing(chainId, token, amount)
 }
 
-func (d DefaultLiquidityProvider) FreezeLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error {
+// FreezeLiquidity Method will freeze certain amount of specific liquidity with quoteHash until specific timestamp.
+// As native token and wrapped native token are managed differently, `isNative` is needed to indicate whether the frozen
+// token is native or not.
+func (d *DefaultLiquidityProvider) FreezeLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error {
 	if d.paused {
 		return proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_PROVIDER, "liquidity provider is paused due to some serious error")
 	}
@@ -148,10 +175,12 @@ func (d DefaultLiquidityProvider) FreezeLiquidity(chainId uint64, token eth.Addr
 	return d.liqManager.ReserveLiquidity(chainId, token, amount, until, hash)
 }
 
-func (d DefaultLiquidityProvider) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error {
+// UnfreezeLiquidity Method will try to unfreeze a certain liquidity with specified hash.
+func (d *DefaultLiquidityProvider) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error {
 	return d.liqManager.UnfreezeLiquidity(chainId, hash)
 }
 
+// DstTransfer Method sends tx on dstChain to transfer dstToken to the User.
 func (d *DefaultLiquidityProvider) DstTransfer(transferNative bool, _quote rfq.RFQQuote, opts ...ethutils.TxOption) (eth.Hash, error) {
 	if d.paused {
 		return eth.ZeroHash, proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_PROVIDER, "liquidity provider is paused due to some serious error")
@@ -193,6 +222,7 @@ func (d *DefaultLiquidityProvider) DstTransfer(transferNative bool, _quote rfq.R
 	return tx.Hash(), nil
 }
 
+// SrcRelease Method sends tx on srcChain to release srcToken to MM.
 func (d *DefaultLiquidityProvider) SrcRelease(_quote rfq.RFQQuote, _execMsgCallData []byte, opts ...ethutils.TxOption) (eth.Hash, error) {
 	if d.paused {
 		return eth.ZeroHash, proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_PROVIDER, "liquidity provider is paused due to some serious error")
@@ -346,7 +376,7 @@ func (d *DefaultLiquidityProvider) genTxHandler(methodName string, _quote rfq.RF
 	}
 }
 
-func (d DefaultLiquidityProvider) approveERC20ToRfq() {
+func (d *DefaultLiquidityProvider) approveERC20ToRfq() {
 	for chainId, txr := range d.txrs {
 		chain, _ := d.chainManager.GetChain(chainId)
 		tokens, amounts, _ := d.liqManager.GetLiqNeedApprove(chainId)
@@ -383,7 +413,7 @@ func (d DefaultLiquidityProvider) approveERC20ToRfq() {
 }
 
 // wrap or unwrap before dst transfer is not supported for now.
-func (d DefaultLiquidityProvider) wrapNative(chainId uint64, amount *big.Int, opts ...ethutils.TxOption) (eth.Hash, error) {
+func (d *DefaultLiquidityProvider) wrapNative(chainId uint64, amount *big.Int, opts ...ethutils.TxOption) (eth.Hash, error) {
 	chain, err := d.chainManager.GetChain(chainId)
 	if err != nil {
 		return eth.ZeroHash, err
@@ -416,7 +446,7 @@ func (d DefaultLiquidityProvider) wrapNative(chainId uint64, amount *big.Int, op
 	return tx.Hash(), nil
 }
 
-func (d DefaultLiquidityProvider) unwrapNative(chainId uint64, amount *big.Int, opts ...ethutils.TxOption) (eth.Hash, error) {
+func (d *DefaultLiquidityProvider) unwrapNative(chainId uint64, amount *big.Int, opts ...ethutils.TxOption) (eth.Hash, error) {
 	chain, err := d.chainManager.GetChain(chainId)
 	if err != nil {
 		return eth.ZeroHash, err
@@ -449,7 +479,8 @@ func (d DefaultLiquidityProvider) unwrapNative(chainId uint64, amount *big.Int, 
 	return tx.Hash(), nil
 }
 
-func (d DefaultLiquidityProvider) substituteNativeToken(chainId uint64, wrap eth.Addr) (eth.Addr, error) {
+// substituteNativeToken converts native token wrap address to NativeTokenReference
+func (d *DefaultLiquidityProvider) substituteNativeToken(chainId uint64, wrap eth.Addr) (eth.Addr, error) {
 	expectedWrap, err := d.chainManager.GetNativeWrap(chainId)
 	if err != nil {
 		return eth.ZeroAddr, err
@@ -461,7 +492,7 @@ func (d DefaultLiquidityProvider) substituteNativeToken(chainId uint64, wrap eth
 	}
 }
 
-func (d DefaultLiquidityProvider) confirmLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error {
+func (d *DefaultLiquidityProvider) confirmLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash, isNative bool) error {
 	if isNative {
 		native, err := d.substituteNativeToken(chainId, token)
 		if err != nil {
@@ -472,7 +503,7 @@ func (d DefaultLiquidityProvider) confirmLiquidity(chainId uint64, token eth.Add
 	return d.liqManager.ConfirmLiquidity(chainId, token, amount, until, hash)
 }
 
-func (d DefaultLiquidityProvider) transferOutLiquidity(chainId uint64, token eth.Addr, amount *big.Int, hash eth.Hash, isNative bool) error {
+func (d *DefaultLiquidityProvider) transferOutLiquidity(chainId uint64, token eth.Addr, amount *big.Int, hash eth.Hash, isNative bool) error {
 	if isNative {
 		native, err := d.substituteNativeToken(chainId, token)
 		if err != nil {
@@ -483,7 +514,7 @@ func (d DefaultLiquidityProvider) transferOutLiquidity(chainId uint64, token eth
 	return d.liqManager.TransferOutLiquidity(chainId, token, amount, hash)
 }
 
-func (d DefaultLiquidityProvider) releaseInLiquidity(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) error {
+func (d *DefaultLiquidityProvider) releaseInLiquidity(chainId uint64, token eth.Addr, amount *big.Int, isNative bool) error {
 	if isNative {
 		native, err := d.substituteNativeToken(chainId, token)
 		if err != nil {
@@ -551,7 +582,7 @@ func (d *DefaultLiquidityProvider) setupTokenPairsOneOf(list []string) {
 }
 
 // string within list should be in format of [chainId]-[symbol]
-func (d DefaultLiquidityProvider) getTokensByStrList(list []string) []*common.Token {
+func (d *DefaultLiquidityProvider) getTokensByStrList(list []string) []*common.Token {
 	tokens := make([]*common.Token, 0)
 	supportedTokens := d.GetTokens()
 	for _, str := range list {
@@ -576,4 +607,179 @@ func (d DefaultLiquidityProvider) getTokensByStrList(list []string) []*common.To
 func genTokenPairKey(srcToken, dstToken *common.Token) string {
 	return fmt.Sprintf("%d-%s-%d-%d-%s-%d", srcToken.ChainId, eth.FormatAddrHex(srcToken.Address), srcToken.Decimals,
 		dstToken.ChainId, eth.FormatAddrHex(dstToken.Address), dstToken.Decimals)
+}
+
+// LiqManager is an example implementation of liquidity and provider account management.
+type LiqManager struct {
+	iLPs map[uint64]*internalLP
+}
+
+// NewLiqManager creates a new instance of LiqManager.
+func NewLiqManager(configs []*LPConfig) *LiqManager {
+	lps := make(map[uint64]*internalLP)
+	for _, config := range configs {
+		lp := newLiqProvider(config)
+		lp.log()
+		lps[config.ChainId] = lp
+	}
+	return &LiqManager{iLPs: lps}
+}
+
+// GetLiqNeedApprove Method returns tokens with amount to be approved on specific chain.
+func (d *LiqManager) GetLiqNeedApprove(chainId uint64) ([]*common.Token, []*big.Int, error) {
+	lp, err := d.getLP(chainId)
+	if err != nil {
+		return nil, nil, err
+	}
+	tokens, amounts := lp.getLiqNeedApprove()
+	return tokens, amounts, nil
+}
+
+// GetChains Method returns a non-repeating list of chainId of all liquidity.
+func (d *LiqManager) GetChains() []uint64 {
+	res := make([]uint64, 0)
+	for k := range d.iLPs {
+		res = append(res, k)
+	}
+	return res
+}
+
+// GetTokens Method returns a map from chainId to configured liquidity tokens.
+func (d *LiqManager) GetTokens() map[uint64][]*common.Token {
+	res := make(map[uint64][]*common.Token, 0)
+	for _, lp := range d.iLPs {
+		res[lp.chainId] = lp.getTokens()
+	}
+	return res
+}
+
+// GetLPAddr Method returns provider account's address of specific chain.
+func (d *LiqManager) GetLPAddr(chainId uint64) (eth.Addr, error) {
+	lp, err := d.getLP(chainId)
+	if err != nil {
+		return eth.ZeroAddr, err
+	}
+	return lp.address, nil
+}
+
+// AskForFreezing Method checks if there is sufficient liquidity for specified token on specified chain and returns freeze time.
+// Freeze time indicates how long the requested liquidity is reserved before the User deposit.
+func (d *LiqManager) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int) (int64, error) {
+	lp, err := d.getLP(chainId)
+	if err != nil {
+		return 0, err
+	}
+	// clear liquidity
+	lp.clear()
+	available, err := lp.getAvailableLiquidity(eth.Addr2Hex(token))
+	if err != nil {
+		return 0, err
+	}
+	if amount.Cmp(available) == 1 {
+		return 0, proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_MANAGER, fmt.Sprintf("no sufficient liquidity to freeze, token %s, chain %d", token, chainId))
+	}
+	return lp.getFreezeTime(eth.Addr2Hex(token))
+}
+
+// ReserveLiquidity Method used for reserving liquidity when the User confirms a quotation.
+// Deadline of reservation and quoteHash should be supplied.
+func (d *LiqManager) ReserveLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error {
+	lp, err := d.getLP(chainId)
+	if err != nil {
+		return err
+	}
+	return lp.reserveLiquidity(eth.Addr2Hex(token), amount, until, hash)
+}
+
+// ConfirmLiquidity Method used for confirming liquidity when RFQ Server informs an MM that the User has deposited.
+// Deadline of confirmation and quoteHash should be supplied.
+func (d *LiqManager) ConfirmLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error {
+	lp, err := d.getLP(chainId)
+	if err != nil {
+		return err
+	}
+	return lp.confirmLiquidity(eth.Addr2Hex(token), amount, until, hash)
+}
+
+// UnfreezeLiquidity Method used to unfreeze a certain liquidity by quoteHash.
+// It applies to both of reservation and confirmation.
+func (d *LiqManager) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error {
+	lp, err := d.getLP(chainId)
+	if err != nil {
+		return err
+	}
+	lp.unfreezeLiquidity(hash)
+	return nil
+}
+
+// TransferOutLiquidity Method used to deduct liquidity amount after an MM has transferred token to the User.
+func (d *LiqManager) TransferOutLiquidity(chainId uint64, token eth.Addr, amount *big.Int, hash eth.Hash) error {
+	lp, err := d.getLP(chainId)
+	if err != nil {
+		return err
+	}
+	return lp.transferOutLiquidity(eth.Addr2Hex(token), amount, hash)
+}
+
+// ReleaseInLiquidity Method used to augment liquidity amount after an MM has released token from src chain.
+func (d *LiqManager) ReleaseInLiquidity(chainId uint64, token eth.Addr, amount *big.Int) error {
+	lp, err := d.getLP(chainId)
+	if err != nil {
+		return err
+	}
+	return lp.releaseInLiquidity(eth.Addr2Hex(token), amount)
+}
+
+// ReleaseNative Method returns whether native token on specific chain is preferred during token releasing.
+func (d *LiqManager) ReleaseNative(chainId uint64) (bool, error) {
+	lp, err := d.getLP(chainId)
+	if err != nil {
+		return false, err
+	}
+	return lp.releaseNative, nil
+}
+
+// UpdateLiqAmt Method updates local liquidity amount via a given ChainQuerier.
+func (d *LiqManager) UpdateLiqAmt(querier ChainQuerier) {
+	for chainId, lp := range d.iLPs {
+		for _, liq := range lp.liqs {
+			if liq.amount != nil {
+				continue
+			}
+			var balance *big.Int
+			var err error
+			if liq.token.GetAddr() == eth.Hex2Addr(NativeTokenReference) {
+				balance, err = querier.GetNativeBalance(chainId, lp.address)
+			} else {
+				balance, err = querier.GetERC20Balance(chainId, liq.token.GetAddr(), lp.address)
+			}
+			if err != nil {
+				log.Errorf("GetBalance err:%s", err)
+				continue
+			}
+			liq.amount = balance
+			log.Infof("Liquidity amount of %s(%s) on %d is updated to %s", liq.token.Symbol, liq.token.Address, chainId, balance.String())
+		}
+	}
+}
+
+// GetSigner Method returns the provider account address and an eth type signer which can be used to sign eth message,
+// construct a transactor or construct a DefaultRequestSigner.
+func (d *LiqManager) GetSigner(chainId uint64) (eth.Addr, ethutils.Signer, error) {
+	lp, err := d.getLP(chainId)
+	if err != nil {
+		return eth.ZeroAddr, nil, err
+	}
+	if lp.signer == nil {
+		return lp.address, nil, fmt.Errorf("lp on chain %d is contract", chainId)
+	}
+	return lp.address, lp.signer, nil
+}
+
+func (d *LiqManager) getLP(chainId uint64) (*internalLP, error) {
+	if lp, found := d.iLPs[chainId]; !found {
+		return nil, proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_MANAGER, fmt.Sprintf("no liquidity provider on %d", chainId))
+	} else {
+		return lp, nil
+	}
 }

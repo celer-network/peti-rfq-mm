@@ -14,6 +14,12 @@ import (
 
 const BestPeriodMultiplier = 1.2
 
+// Price API is used to get price from MM for a swap within PriceRequest.
+// In PriceRequest, at least one amount should be given.
+//   - If SrcAmount is given, MM application will return with how much DstToken will be received by User.
+//   - If DstAmount is given, MM application will return with how much SrcToken User should deposit to receive
+//     such amount of DstToken. (not yet implemented)
+//   - If both of SrcAmount and DstAmount is given, MM application will treat it as the first case.
 func (c *Client) Price(ctx context.Context, in *proto.PriceRequest, opts ...grpc.CallOption) (*proto.PriceResponse, error) {
 	if ok, reason := validatePriceRequest(in); !ok {
 		return &proto.PriceResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, reason).ToCommonErr()}, nil
@@ -21,6 +27,7 @@ func (c *Client) Price(ctx context.Context, in *proto.PriceRequest, opts ...grpc
 	return c.ApiClient.Price(ctx, in, opts...)
 }
 
+// Quote API is used to confirm a quotation from MM.
 func (c *Client) Quote(ctx context.Context, in *proto.QuoteRequest, opts ...grpc.CallOption) (*proto.QuoteResponse, error) {
 	if ok, reason := validateQuoteRequest(in); !ok {
 		return &proto.QuoteResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, reason).ToCommonErr()}, nil
@@ -28,6 +35,13 @@ func (c *Client) Quote(ctx context.Context, in *proto.QuoteRequest, opts ...grpc
 	return c.ApiClient.Quote(ctx, in, opts...)
 }
 
+// Price API is a default implementation of responding a Client.Price request.
+//
+// Basic flow:
+//   - validate price request
+//   - calculate price
+//   - check if there is sufficient liquidity for requested token
+//   - sign price
 func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (response *proto.PriceResponse, err error) {
 	defer func() {
 		if response.Err == nil {
@@ -51,7 +65,8 @@ func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (respon
 	if request.SrcAmount == "" {
 		// todo, not supported now
 		receiveAmount.SetString(request.DstAmount, 10)
-		sendAmount, releaseAmount, fee, err = s.AmountCalculator.CalSendAmt(request.SrcToken, request.DstToken, receiveAmount)
+		baseFee.SetString(request.BaseFee, 10)
+		sendAmount, releaseAmount, fee, err = s.AmountCalculator.CalSendAmt(request.SrcToken, request.DstToken, receiveAmount, baseFee, s.Config.LightMM)
 		if err != nil {
 			return &proto.PriceResponse{Err: err.(*proto.Err).ToCommonErr()}, nil
 		}
@@ -94,6 +109,14 @@ func (s *Server) Price(ctx context.Context, request *proto.PriceRequest) (respon
 	return &proto.PriceResponse{Price: price}, nil
 }
 
+// Quote service is a default implementation of responding at a Client.Quote request.
+//
+// Basic flow:
+//   - validate quote request
+//   - check price sig
+//   - check release amount within request is correct
+//   - check if there is sufficient liquidity for requested token
+//   - sign quote
 func (s *Server) Quote(ctx context.Context, request *proto.QuoteRequest) (response *proto.QuoteResponse, err error) {
 	defer func() {
 		if response.Err == nil {
@@ -137,6 +160,15 @@ func (s *Server) Quote(ctx context.Context, request *proto.QuoteRequest) (respon
 	return &proto.QuoteResponse{QuoteSig: eth.Bytes2Hex(sigBytes)}, nil
 }
 
+// SignQuoteHash service is a default implementation of responding at a Client.SignQuoteHash request.
+//
+// Basic flow:
+//   - check if self is a light versioned market maker
+//   - check quote sig
+//   - check dst deadline of quote
+//   - check deposit tx of user is mined on src chain and expected event is emitted
+//   - check quote status within rfq contract on src chain is 1(SrcDeposited)
+//   - sign quote
 func (s *Server) SignQuoteHash(ctx context.Context, request *proto.SignQuoteHashRequest) (*proto.SignQuoteHashResponse, error) {
 	if !s.Config.LightMM {
 		return signQuoteHashArgumentErr("this api only works for light mm")
@@ -180,6 +212,10 @@ func signQuoteHashArgumentErr(reason string) (*proto.SignQuoteHashResponse, erro
 	return &proto.SignQuoteHashResponse{Err: proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, reason).ToCommonErr()}, nil
 }
 
+// Tokens service is a default implementation of responding at a Client.Tokens request.
+//
+// Basic flow:
+//   - return all supported tokens
 func (s *Server) Tokens(ctx context.Context, request *proto.TokensRequest) (*proto.TokensResponse, error) {
 	return &proto.TokensResponse{
 		Tokens: s.LiquidityProvider.GetTokens(),

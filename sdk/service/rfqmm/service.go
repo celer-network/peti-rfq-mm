@@ -104,14 +104,23 @@ func (config *ServerConfig) clean() {
 }
 
 type ChainQuerier interface {
+	// GetRfqContract returns the address of RFQ contract on specific Chain.
 	GetRfqContract(chainId uint64) (eth.Addr, error)
+	// GetRfqFee returns RFQ protocol fee amount by querying RFQ contract.
 	GetRfqFee(srcChainId, dstChainId uint64, amount *big.Int) (*big.Int, error)
+	// GetMsgFee returns required native token amount for sending a message with constant length 32
 	GetMsgFee(chainId uint64) (*big.Int, error)
+	// GetGasPrice returns the suggested gas price on specific chain.
 	GetGasPrice(chainId uint64) (*big.Int, error)
+	// GetNativeWrap returns configured native token struct of specific chain.
 	GetNativeWrap(chainId uint64) (*common.Token, error)
+	// GetERC20Balance returns requested ERC20 token balance.
 	GetERC20Balance(chainId uint64, token, account eth.Addr) (*big.Int, error)
+	// GetNativeBalance returns requested native token balance.
 	GetNativeBalance(chainId uint64, accoun eth.Addr) (*big.Int, error)
+	// GetQuoteStatus returns current status on chain of a specific quote.
 	GetQuoteStatus(chainId uint64, quoteHash eth.Hash) (uint8, error)
+	// VerifyRfqEvent returns whether expected event was emitted within specific tx on specific chain.
 	VerifyRfqEvent(chainId uint64, tx eth.Hash, evName string) (bool, error)
 }
 
@@ -139,12 +148,22 @@ type LiquidityProvider interface {
 }
 
 type AmountCalculator interface {
+	// CalRecvAmt Method returns
+	//   - recvAmt: how much `tokenOut` will be received by User
+	//   - releaseAmt: how much `tokenIn` will be received by MM
+	//   - fee: how much `tokenIn` is charged as fee in total.
 	CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFee *big.Int, isLightMM bool) (recvAmt, releaseAmt, fee *big.Int, err error)
-	CalSendAmt(tokenIn, tokenOut *common.Token, amountOut *big.Int) (sendAmt, releaseAmt, fee *big.Int, err error)
+	// CalSendAmt Method returns
+	//   - sendAmt: how much `tokenIn` should be sent by User
+	//   - releaseAmt: how much `tokenIn` will be received by MM
+	//   - fee: how much `tokenIn` is charged as fee in total.
+	CalSendAmt(tokenIn, tokenOut *common.Token, amountOut, baseFee *big.Int, isLightMM bool) (sendAmt, releaseAmt, fee *big.Int, err error)
 }
 
 type RequestSigner interface {
+	// Sign returns the signature of the underlying signer for the given data
 	Sign(data []byte) ([]byte, error)
+	// Verify returns whether the signature is signed by the underlying signer
 	Verify(data, sig []byte) bool
 }
 

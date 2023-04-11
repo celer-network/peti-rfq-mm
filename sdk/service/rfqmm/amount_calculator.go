@@ -13,16 +13,23 @@ import (
 
 var _ AmountCalculator = &DefaultAmtCalculator{}
 
+// DefaultAmtCalculator is a default implementation of interface AmountCalculator
 type DefaultAmtCalculator struct {
 	// fixed cost related fields
+	// how much gas charged on dst chain, gas used by DstTransfer
 	DstGasCost uint64
+	// how much gas charged on src chain, gas used by SrcRelease
 	SrcGasCost uint64
-	GasPrice   map[uint64]uint64
+	// map from chain id to charging gas price, only used when Querier(ChainQuerier.GetGasPrice) returns error or 0
+	GasPrice map[uint64]uint64
 
-	// personalized fee related fieds
+	// personalized percentage fee related fieds
 	// 100% = 1000000
-	FeePercGlobal        uint32
+	// global fee percentage configuration, will be used when no override matches
+	FeePercGlobal uint32
+	// override per pairs of chain id
 	PerChainPairOverride map[uint64]map[uint64]uint32
+	// override per pairs of <chainId-tokenAddr>
 	PerTokenPairOverride map[string]map[string]uint32
 
 	// helper
@@ -82,26 +89,30 @@ func NewDefaultAmtCalculator(feeConfig *FeeConfig, querier ChainQuerier, pricePr
 	return ac
 }
 
+// SetDstGasCost Method sets gas cost charged by MM on dst chain.
 func (ac *DefaultAmtCalculator) SetDstGasCost(gasCost uint64) {
 	ac.DstGasCost = gasCost
 }
 
+// SetSrcGasCost Method sets gas cost charged by MM on src chain.
 func (ac *DefaultAmtCalculator) SetSrcGasCost(gasCost uint64) {
 	ac.SrcGasCost = gasCost
 }
 
+// SetGlobalFeePerc Method sets global fee percentage, of which maximum is 1000000(=100%).
 func (ac *DefaultAmtCalculator) SetGlobalFeePerc(feePerc uint32) error {
 	if feePerc > 1e6 {
-		return proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "feePercGlobal too large")
+		return proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "fee percentage too large")
 	}
 	ac.FeePercGlobal = feePerc
 	return nil
 }
 
+// SetPerChainPairFeePercOverride Method override fee percentage per chain pair.
 func (ac *DefaultAmtCalculator) SetPerChainPairFeePercOverride(overrides []*ChainOverride) error {
 	for _, override := range overrides {
 		if override.Perc > 1e6 {
-			return proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "feePercGlobal too large")
+			return proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "fee percentage too large")
 		}
 		if ac.PerChainPairOverride[override.SrcChainId] == nil {
 			ac.PerChainPairOverride[override.SrcChainId] = map[uint64]uint32{override.DstChainId: override.Perc}
@@ -112,10 +123,11 @@ func (ac *DefaultAmtCalculator) SetPerChainPairFeePercOverride(overrides []*Chai
 	return nil
 }
 
+// SetPerTokenPairFeePercOverride Method override fee percentage per token pair.
 func (ac *DefaultAmtCalculator) SetPerTokenPairFeePercOverride(overrides []*TokenOverride) error {
 	for _, override := range overrides {
 		if override.Perc > 1e6 {
-			return proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "feePercGlobal too large")
+			return proto.NewErr(proto.ErrCode_ERROR_INVALID_ARGUMENTS, "fee percentage too large")
 		}
 		inStr := fmt.Sprintf("%d-%s", override.SrcChainId, eth.FormatAddrHex(override.SrcToken))
 		outStr := fmt.Sprintf("%d-%s", override.DstChainId, eth.FormatAddrHex(override.DstToken))
@@ -128,6 +140,7 @@ func (ac *DefaultAmtCalculator) SetPerTokenPairFeePercOverride(overrides []*Toke
 	return nil
 }
 
+// SetGasPrice Method sets gas price charged for each gas in wei by MM.
 func (ac *DefaultAmtCalculator) SetGasPrice(prices []*GasPrice) {
 	for _, gasPrice := range prices {
 		ac.GasPrice[gasPrice.ChainId] = gasPrice.Price
@@ -211,6 +224,10 @@ func (ac *DefaultAmtCalculator) calBaseFee(tokenIn, tokenOut *common.Token) (bas
 // for default mm:
 //   srcAmount - rfqFee = srcReleaseAmount
 
+// CalRecvAmt Method returns
+//   - amountOut: how much `tokenOut` will be received by User
+//   - releaseAmt: how much `tokenIn` will be received by MM
+//   - fee: how much `tokenIn` is charged as fee in total.
 func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amountIn, baseFeeForLMM *big.Int, isLightMM bool) (amountOut, releaseAmt, fee *big.Int, err error) {
 	tokenInPrice, err := ac.PriceProvider.GetPrice(tokenIn)
 	if err != nil {
@@ -254,10 +271,16 @@ func (ac *DefaultAmtCalculator) CalRecvAmt(tokenIn, tokenOut *common.Token, amou
 	return
 }
 
-func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn, tokenOut *common.Token, amountOut *big.Int) (*big.Int, *big.Int, *big.Int, error) {
+// CalSendAmt Method returns
+//   - amountIn: how much `tokenIn` should be sent by User
+//   - releaseAmt: how much `tokenIn` will be received by MM
+//   - fee: how much `tokenIn` is charged as fee in total.
+func (ac *DefaultAmtCalculator) CalSendAmt(tokenIn, tokenOut *common.Token, amountOut, baseFeeForLMM *big.Int, isLightMM bool) (amountIn *big.Int, releaseAmt *big.Int, fee *big.Int, err error) {
+	// TODO
 	return nil, nil, nil, fmt.Errorf("not supported now")
 }
 
+// calMmFee returns fee required by mm, of which unit is tokenIn
 func (ac *DefaultAmtCalculator) calMmFee(tokenIn, tokenOut *common.Token, amountIn *big.Int) *big.Int {
 	perc := ac.FeePercGlobal
 	if p, found := ac.PerChainPairOverride[tokenIn.ChainId][tokenOut.ChainId]; found {

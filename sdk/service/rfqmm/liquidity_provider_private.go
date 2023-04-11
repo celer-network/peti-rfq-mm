@@ -20,167 +20,12 @@ import (
 )
 
 const (
-	LiqOpAny = iota
-	LiqOpReserve
-	LiqOpConfirm
+	liqOpAny = iota
+	liqOpReserve
+	liqOpConfirm
 )
 
-type LiqManager struct {
-	LPs map[uint64]*LiqProvider
-}
-
-func NewLiqManager(configs []*LPConfig) *LiqManager {
-	lps := make(map[uint64]*LiqProvider)
-	for _, config := range configs {
-		lp := NewLiqProvider(config)
-		lp.log()
-		lps[config.ChainId] = lp
-	}
-	return &LiqManager{LPs: lps}
-}
-
-func (d *LiqManager) GetLiqNeedApprove(chainId uint64) ([]*common.Token, []*big.Int, error) {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return nil, nil, err
-	}
-	tokens, amounts := lp.getLiqNeedApprove()
-	return tokens, amounts, nil
-}
-
-func (d *LiqManager) GetChains() []uint64 {
-	res := make([]uint64, 0)
-	for k := range d.LPs {
-		res = append(res, k)
-	}
-	return res
-}
-
-func (d *LiqManager) GetTokens() map[uint64][]*common.Token {
-	res := make(map[uint64][]*common.Token, 0)
-	for _, lp := range d.LPs {
-		res[lp.chainId] = lp.getTokens()
-	}
-	return res
-}
-
-func (d *LiqManager) GetLiquidityProvider(chainId uint64) (eth.Addr, error) {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return eth.ZeroAddr, err
-	}
-	return lp.address, nil
-}
-
-func (d *LiqManager) AskForFreezing(chainId uint64, token eth.Addr, amount *big.Int) (int64, error) {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return 0, err
-	}
-	// clear liquidity
-	lp.clear()
-	available, err := lp.getAvailableLiquidity(eth.Addr2Hex(token))
-	if err != nil {
-		return 0, err
-	}
-	if amount.Cmp(available) == 1 {
-		return 0, proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_MANAGER, fmt.Sprintf("no sufficient liquidity to freeze, token %s, chain %d", token, chainId))
-	}
-	return lp.getFreezeTime(eth.Addr2Hex(token))
-}
-
-func (d *LiqManager) ReserveLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return err
-	}
-	return lp.reserveLiquidity(eth.Addr2Hex(token), amount, until, hash)
-}
-
-func (d *LiqManager) ConfirmLiquidity(chainId uint64, token eth.Addr, amount *big.Int, until int64, hash eth.Hash) error {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return err
-	}
-	return lp.confirmLiquidity(eth.Addr2Hex(token), amount, until, hash)
-}
-
-func (d *LiqManager) UnfreezeLiquidity(chainId uint64, hash eth.Hash) error {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return err
-	}
-	lp.unfreezeLiquidity(hash)
-	return nil
-}
-
-func (d *LiqManager) TransferOutLiquidity(chainId uint64, token eth.Addr, amount *big.Int, hash eth.Hash) error {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return err
-	}
-	return lp.transferOutLiquidity(eth.Addr2Hex(token), amount, hash)
-}
-
-func (d *LiqManager) ReleaseInLiquidity(chainId uint64, token eth.Addr, amount *big.Int) error {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return err
-	}
-	return lp.releaseInLiquidity(eth.Addr2Hex(token), amount)
-}
-
-func (d *LiqManager) ReleaseNative(chainId uint64) (bool, error) {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return false, err
-	}
-	return lp.releaseNative, nil
-}
-
-func (d *LiqManager) UpdateLiqAmt(querier ChainQuerier) {
-	for chainId, lp := range d.LPs {
-		for _, liq := range lp.liqs {
-			if liq.amount != nil {
-				continue
-			}
-			var balance *big.Int
-			var err error
-			if liq.token.GetAddr() == eth.Hex2Addr(NativeTokenReference) {
-				balance, err = querier.GetNativeBalance(chainId, lp.address)
-			} else {
-				balance, err = querier.GetERC20Balance(chainId, liq.token.GetAddr(), lp.address)
-			}
-			if err != nil {
-				log.Errorf("GetBalance err:%s", err)
-				continue
-			}
-			liq.amount = balance
-			log.Infof("Liquidity amount of %s(%s) on %d is updated to %s", liq.token.Symbol, liq.token.Address, chainId, balance.String())
-		}
-	}
-}
-
-func (d *LiqManager) GetLP(chainId uint64) (*LiqProvider, error) {
-	if lp, found := d.LPs[chainId]; !found {
-		return nil, proto.NewErr(proto.ErrCode_ERROR_LIQUIDITY_MANAGER, fmt.Sprintf("no liquidity provider on %d", chainId))
-	} else {
-		return lp, nil
-	}
-}
-
-func (d *LiqManager) GetSigner(chainId uint64) (eth.Addr, ethutils.Signer, error) {
-	lp, err := d.GetLP(chainId)
-	if err != nil {
-		return eth.ZeroAddr, nil, err
-	}
-	if lp.signer == nil {
-		return lp.address, nil, fmt.Errorf("lp on chain %d is contract", chainId)
-	}
-	return lp.address, lp.signer, nil
-}
-
-type LiqProvider struct {
+type internalLP struct {
 	mux     sync.RWMutex
 	signer  ethutils.Signer
 	chainId uint64
@@ -219,7 +64,7 @@ type LiquidityConfig struct {
 	FreezeTime int64
 }
 
-func NewLiqProvider(config *LPConfig) *LiqProvider {
+func newLiqProvider(config *LPConfig) *internalLP {
 	// contract
 	lpAddr := eth.Hex2Addr(config.Address)
 	var signer ethutils.Signer
@@ -250,7 +95,7 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 		}
 		liqs[eth.FormatAddrHex(liq.Address)] = liquidity
 	}
-	return &LiqProvider{
+	return &internalLP{
 		signer:        signer,
 		chainId:       config.ChainId,
 		address:       lpAddr,
@@ -261,7 +106,7 @@ func NewLiqProvider(config *LPConfig) *LiqProvider {
 	}
 }
 
-func (lp *LiqProvider) log() {
+func (lp *internalLP) log() {
 	log.Infof("Configuration of liquidity provider on chain %d", lp.chainId)
 	log.Infof("\taddr:%s", lp.address)
 	log.Infof("\tliqs:")
@@ -270,7 +115,7 @@ func (lp *LiqProvider) log() {
 	}
 }
 
-func (lp *LiqProvider) getAvailableLiquidity(token string) (*big.Int, error) {
+func (lp *internalLP) getAvailableLiquidity(token string) (*big.Int, error) {
 	lp.mux.RLock()
 	defer lp.mux.RUnlock()
 	if liq, found := lp.liqs[token]; found {
@@ -281,7 +126,7 @@ func (lp *LiqProvider) getAvailableLiquidity(token string) (*big.Int, error) {
 }
 
 // clear all liq ops that are time out
-func (lp *LiqProvider) clear() {
+func (lp *internalLP) clear() {
 	lp.mux.Lock()
 	defer lp.mux.Unlock()
 	dropTo := 0
@@ -290,9 +135,9 @@ func (lp *LiqProvider) clear() {
 		if detail.Until < now {
 			dropTo = i + 1
 			switch detail.Type {
-			case LiqOpConfirm:
+			case liqOpConfirm:
 				lp.liqs[detail.Token].cancelConfirmation(detail.Amount)
-			case LiqOpReserve:
+			case liqOpReserve:
 				lp.liqs[detail.Token].cancelReservation(detail.Amount)
 			}
 			delete(lp.hashToUntil, detail.Hash)
@@ -307,7 +152,7 @@ func (lp *LiqProvider) clear() {
 	}
 }
 
-func (lp *LiqProvider) reserveLiquidity(token string, amount *big.Int, until int64, hash eth.Hash) error {
+func (lp *internalLP) reserveLiquidity(token string, amount *big.Int, until int64, hash eth.Hash) error {
 	lp.mux.Lock()
 	defer lp.mux.Unlock()
 	// check hash map at first
@@ -321,7 +166,7 @@ func (lp *LiqProvider) reserveLiquidity(token string, amount *big.Int, until int
 		}
 		lp.hashToUntil[hash] = until
 		lp.liqOps = append(lp.liqOps, &LiqOpDetail{
-			Type:   LiqOpReserve,
+			Type:   liqOpReserve,
 			Until:  until,
 			Token:  token,
 			Amount: amount,
@@ -337,11 +182,11 @@ func (lp *LiqProvider) reserveLiquidity(token string, amount *big.Int, until int
 	}
 }
 
-func (lp *LiqProvider) confirmLiquidity(token string, amount *big.Int, until int64, hash eth.Hash) error {
+func (lp *internalLP) confirmLiquidity(token string, amount *big.Int, until int64, hash eth.Hash) error {
 	lp.mux.Lock()
 	defer lp.mux.Unlock()
 	// try to release reserved liquidity before confirm it
-	lp.privateUnfreezeLiquidity(hash, LiqOpReserve)
+	lp.privateUnfreezeLiquidity(hash, liqOpReserve)
 	// check hash map at first
 	if _, ok := lp.hashToUntil[hash]; ok {
 		return nil
@@ -353,7 +198,7 @@ func (lp *LiqProvider) confirmLiquidity(token string, amount *big.Int, until int
 		}
 		lp.hashToUntil[hash] = until
 		lp.liqOps = append(lp.liqOps, &LiqOpDetail{
-			Type:   LiqOpConfirm,
+			Type:   liqOpConfirm,
 			Until:  until,
 			Token:  token,
 			Amount: amount,
@@ -370,14 +215,14 @@ func (lp *LiqProvider) confirmLiquidity(token string, amount *big.Int, until int
 }
 
 // unfreeze a frozen liquidity with specified hash, can be used for releasing reserved/confirmed liquidity
-func (lp *LiqProvider) unfreezeLiquidity(hash eth.Hash) {
+func (lp *internalLP) unfreezeLiquidity(hash eth.Hash) {
 	lp.mux.Lock()
 	defer lp.mux.Unlock()
-	lp.privateUnfreezeLiquidity(hash, LiqOpAny)
+	lp.privateUnfreezeLiquidity(hash, liqOpAny)
 }
 
 // private method without lock&unlock
-func (lp *LiqProvider) privateUnfreezeLiquidity(hash eth.Hash, opType int) {
+func (lp *internalLP) privateUnfreezeLiquidity(hash eth.Hash, opType int) {
 	if hash == eth.ZeroHash {
 		return
 	}
@@ -392,16 +237,16 @@ func (lp *LiqProvider) privateUnfreezeLiquidity(hash eth.Hash, opType int) {
 		} else if detail.Until > until {
 			return
 		} else if detail.Hash == hash {
-			if opType == LiqOpAny || opType == detail.Type {
+			if opType == liqOpAny || opType == detail.Type {
 				if i+1 == len(lp.liqOps) {
 					lp.liqOps = lp.liqOps[:i]
 				} else {
 					lp.liqOps = append(lp.liqOps[:i], lp.liqOps[i+1:]...)
 				}
 				switch detail.Type {
-				case LiqOpConfirm:
+				case liqOpConfirm:
 					lp.liqs[detail.Token].cancelConfirmation(detail.Amount)
-				case LiqOpReserve:
+				case liqOpReserve:
 					lp.liqs[detail.Token].cancelReservation(detail.Amount)
 				}
 				delete(lp.hashToUntil, hash)
@@ -411,11 +256,11 @@ func (lp *LiqProvider) privateUnfreezeLiquidity(hash eth.Hash, opType int) {
 	}
 }
 
-func (lp *LiqProvider) transferOutLiquidity(token string, amount *big.Int, hash eth.Hash) error {
+func (lp *internalLP) transferOutLiquidity(token string, amount *big.Int, hash eth.Hash) error {
 	lp.mux.Lock()
 	defer lp.mux.Unlock()
 	// try to release confirmed liquidity before transfer out
-	lp.privateUnfreezeLiquidity(hash, LiqOpConfirm)
+	lp.privateUnfreezeLiquidity(hash, liqOpConfirm)
 	if liq, found := lp.liqs[token]; found {
 		liq.transferOut(amount)
 		return nil
@@ -424,7 +269,7 @@ func (lp *LiqProvider) transferOutLiquidity(token string, amount *big.Int, hash 
 	}
 }
 
-func (lp *LiqProvider) releaseInLiquidity(token string, amount *big.Int) error {
+func (lp *internalLP) releaseInLiquidity(token string, amount *big.Int) error {
 	lp.mux.Lock()
 	defer lp.mux.Unlock()
 	if liq, found := lp.liqs[token]; found {
@@ -435,7 +280,7 @@ func (lp *LiqProvider) releaseInLiquidity(token string, amount *big.Int) error {
 	}
 }
 
-func (lp *LiqProvider) getTokens() []*common.Token {
+func (lp *internalLP) getTokens() []*common.Token {
 	tokens := make([]*common.Token, 0)
 	for _, liq := range lp.liqs {
 		tokens = append(tokens, liq.token)
@@ -443,7 +288,7 @@ func (lp *LiqProvider) getTokens() []*common.Token {
 	return tokens
 }
 
-func (lp *LiqProvider) getFreezeTime(token string) (int64, error) {
+func (lp *internalLP) getFreezeTime(token string) (int64, error) {
 	if liq, found := lp.liqs[token]; found {
 		return liq.freezeTime, nil
 	} else {
@@ -451,7 +296,7 @@ func (lp *LiqProvider) getFreezeTime(token string) (int64, error) {
 	}
 }
 
-func (lp *LiqProvider) getLiqNeedApprove() ([]*common.Token, []*big.Int) {
+func (lp *internalLP) getLiqNeedApprove() ([]*common.Token, []*big.Int) {
 	tokens := make([]*common.Token, 0)
 	amounts := make([]*big.Int, 0)
 	for _, liq := range lp.liqs {
